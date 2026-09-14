@@ -41,8 +41,8 @@ func main() {
 	} else {
 		// Start provider background scanner
 		go func() {
-			if err := dockerProvider.Start(ctx); err != nil && ctx.Err() == nil {
-				slog.Error("Docker provider execution stopped", "error", err)
+			if startErr := dockerProvider.Start(ctx); startErr != nil && ctx.Err() == nil {
+				slog.Error("Docker provider execution stopped", "error", startErr)
 			}
 		}()
 
@@ -67,25 +67,55 @@ func main() {
 		}()
 	}
 
+	r := setupRouter(collector, router, dockerProvider)
+
+	server := &http.Server{
+		Addr:         ":80",
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	go func() {
+		slog.Info("TrafficProxy Edge Gateway running", "addr", ":80")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("HTTP server error", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-ctx.Done()
+	slog.Info("Shutting down gateway gracefully...")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Server forced to shutdown", "error", err)
+	}
+	slog.Info("Gateway stopped cleanly")
+}
+
+func setupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, dockerProvider *discovery.DockerProvider) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
 	// Embedded UI File Server setup
-	subFS, err := fs.Sub(ui.Assets, "static")
-	if err != nil {
-		slog.Error("Failed to locate embedded UI assets", "error", err)
+	subFS, subErr := fs.Sub(ui.Assets, "static")
+	if subErr != nil {
+		slog.Error("Failed to locate embedded UI assets", "error", subErr)
 		os.Exit(1)
 	}
 	fileServer := http.FileServer(http.FS(subFS))
 	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		r.URL.Path = "/index.html"
-		fileServer.ServeHTTP(w, r)
+	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		http.ServeFileFS(w, req, subFS, "index.html")
 	})
 
 	// Server-Sent Events (SSE) Telemetry Stream
-	r.Get("/api/events", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/api/events", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
@@ -102,7 +132,7 @@ func main() {
 
 		for {
 			select {
-			case <-r.Context().Done():
+			case <-req.Context().Done():
 				return
 			case <-ticker.C:
 				var serviceCount int
@@ -134,34 +164,9 @@ func main() {
 	})
 
 	// Reverse Proxy Catch-all routing
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		router.ServeHTTP(w, r)
+	r.NotFound(func(w http.ResponseWriter, req *http.Request) {
+		proxyRouter.ServeHTTP(w, req)
 	})
 
-	server := &http.Server{
-		Addr:         ":80",
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	go func() {
-		slog.Info("TrafficProxy Edge Gateway running", "addr", ":80")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("HTTP server error", "error", err)
-			os.Exit(1)
-		}
-	}()
-
-	<-ctx.Done()
-	slog.Info("Shutting down gateway gracefully...")
-
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer shutdownCancel()
-
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("Server forced to shutdown", "error", err)
-	}
-	slog.Info("Gateway stopped cleanly")
+	return r
 }
