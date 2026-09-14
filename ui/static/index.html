@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Proxy Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-slate-900 border-r border-slate-800 p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="p-2 bg-brand-500/10 border border-brand-500/20 rounded-xl text-brand-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight">TrafficProxy</h1>
+                        <span class="text-xs text-slate-400">Edge Gateway</span>
+                    </div>
+                </div>
+
+                <nav class="space-y-1">
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-800 text-white font-medium text-sm">
+                        <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                </nav>
+            </div>
+            
+            <div class="text-xs text-slate-500 border-t border-slate-800 pt-4">
+                Single Binary Engine v1.0.0
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-8">
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold">System Status</h2>
+                    <p class="text-slate-400 text-sm">Real-time telemetry and container routing metrics</p>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-lg text-xs font-mono">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    SSE Connected
+                </div>
+            </header>
+
+            <!-- Metrics SSE Container -->
+            <div hx-ext="sse" sse-connect="/api/events" sse-swap="metrics">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Total Requests</span>
+                        <div class="text-3xl font-bold mt-2 font-mono text-white" id="metric-total-requests">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Active Concurrency</span>
+                        <div class="text-3xl font-bold mt-2 font-mono text-brand-500" id="metric-active-concurrency">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Discovered Services</span>
+                        <div class="text-3xl font-bold mt-2 font-mono text-sky-400" id="metric-discovered-services">0</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
+                        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Queued Requests</span>
+                        <div class="text-3xl font-bold mt-2 font-mono text-amber-400" id="metric-queued-requests">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl mb-8">
+                <h3 class="text-lg font-semibold mb-4">Live Traffic Throughput</h3>
+                <div class="h-64">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('trafficChart').getContext('2d');
+        const trafficChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Total Requests',
+                    data: [],
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
+                    y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#94a3b8' } }
+                }
+            }
+        });
+
+        document.body.addEventListener('htmx:sseMessage', function(e) {
+            if (e.detail.type === 'telemetry') {
+                const data = JSON.parse(e.detail.data);
+                const now = new Date().toLocaleTimeString();
+                
+                if (trafficChart.data.labels.length > 20) {
+                    trafficChart.data.labels.shift();
+                    trafficChart.data.datasets[0].data.shift();
+                }
+                
+                trafficChart.data.labels.push(now);
+                trafficChart.data.datasets[0].data.push(data.total_requests);
+                trafficChart.update();
+            }
+        });
+    </script>
+</body>
+</html>
