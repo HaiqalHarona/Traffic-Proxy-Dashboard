@@ -64,7 +64,7 @@ TrafficProxy is a container-aware HTTP reverse proxy and edge gateway. It automa
   - Declares core dependencies including `github.com/go-chi/chi/v5` (HTTP router and middleware), `github.com/docker/docker` (Docker Engine client API), and `golang.org/x/sync/semaphore` (weighted semaphore implementation).
 
 - **`.golangci.yml`**:
-  - Configures `golangci-lint` with official JSON schema binding. Enables linters (`errcheck`, `gosimple`, `govet` with `enable-all: true`, `ineffassign`, `staticcheck`, `unused`, `misspell`) and formatters (`gofmt`). Sets execution timeout to 5 minutes.
+  - Configures `golangci-lint` (v1 schema compatible with v1.64.8). Enables linters (`errcheck`, `gosimple`, `govet` with `enable-all: true`, `ineffassign`, `staticcheck`, `unused`, `gofmt`, `misspell`). Sets execution timeout to 5 minutes.
 
 - **`.dockerignore`**:
   - Excludes `.git`, `.gitignore`, `README.md`, `Dockerfile`, `docker-compose.yml`, `learning_proposal.md`, and `*.log` from the Docker build context.
