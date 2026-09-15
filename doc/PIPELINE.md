@@ -47,7 +47,7 @@ The CI pipeline (`Fuckass Pipeline` defined in `.github/workflows/ci.yml`) runs 
 - **Go Version**: `1.22` with automated module caching (`cache: true`).
 - **Steps**:
   1. `go vet ./...`: Standard Go code vetting for suspicious constructs.
-  2. `golangci-lint`: Executes via `golangci-lint-action@v6` with `--timeout 5m`, referencing root configuration [`.golangci.yml`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/.golangci.yml) with official JSON schema binding. Enforces active linters (`errcheck`, `gosimple`, `govet` with `enable-all: true`, `ineffassign`, `staticcheck`, `unused`, `misspell`) and formatters (`gofmt`).
+  2. `golangci-lint`: Executes via `golangci-lint-action@v6` with `--timeout 5m`, referencing root configuration [`.golangci.yml`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/.golangci.yml) (v1 schema compatible with `v1.64.8`). Enforces active linters (`errcheck`, `gosimple`, `govet` with `enable-all: true`, `ineffassign`, `staticcheck`, `unused`, `gofmt`, `misspell`).
 
 ### Job 2: Test
 - **Environment**: `ubuntu-latest`
