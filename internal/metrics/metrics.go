@@ -17,11 +17,11 @@ type MetricSnapshot struct {
 
 // TelemetryRingBuffer provides thread-safe ring buffer storage for telemetry snapshots.
 type TelemetryRingBuffer struct {
+	data     []MetricSnapshot
 	mu       sync.RWMutex
 	capacity uint64
 	mask     uint64
 	writeIdx uint64
-	data     []MetricSnapshot
 }
 
 func NewTelemetryRingBuffer(sizeExponent uint8) *TelemetryRingBuffer {
@@ -54,10 +54,10 @@ func (rb *TelemetryRingBuffer) Latest() MetricSnapshot {
 
 // Collector tracks global proxy telemetry using atomic primitives for counters.
 type Collector struct {
+	RingBuffer        *TelemetryRingBuffer
 	TotalRequests     atomic.Uint64
 	ActiveConcurrency atomic.Int64
 	QueuedRequests    atomic.Int64
-	RingBuffer        *TelemetryRingBuffer
 }
 
 func NewCollector() *Collector {

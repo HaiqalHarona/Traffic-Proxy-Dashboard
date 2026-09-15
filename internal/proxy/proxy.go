@@ -25,11 +25,11 @@ type Config struct {
 
 // Router manages target reverse proxies and active traffic control.
 type Router struct {
-	cfg      Config
 	sem      *semaphore.Weighted
 	metrics  *metrics.Collector
-	mu       sync.RWMutex
 	backends map[string]*httputil.ReverseProxy
+	mu       sync.RWMutex
+	cfg      Config
 }
 
 func NewRouter(cfg Config, collector *metrics.Collector) *Router {
