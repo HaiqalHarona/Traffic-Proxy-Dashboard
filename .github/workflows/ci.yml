@@ -12,7 +12,7 @@ concurrency:
 
 env:
   GO_VERSION: "1.22"
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/traffic-proxy
+  IMAGE_NAME: ghcr.io/haiqalharona/traffic-proxy
 
 jobs:
   # ─────────────────────────────────────────────
