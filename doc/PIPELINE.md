@@ -47,15 +47,16 @@ The CI pipeline (`Fuckass Pipeline` defined in `.github/workflows/ci.yml`) runs 
 - **Go Version**: `1.22` with automated module caching (`cache: true`).
 - **Steps**:
   1. `go vet ./...`: Standard Go code vetting for suspicious constructs.
-  2. `golangci-lint`: Executes via `golangci-lint-action@v6` with `--timeout 5m`, referencing root configuration [`.golangci.yml`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/.golangci.yml) (enabling `errcheck`, `gosimple`, `govet` with `enable-all: true`, `ineffassign`, `staticcheck`, `unused`, `gofmt`, and `misspell`).
+  2. `golangci-lint`: Executes via `golangci-lint-action@v6` with `--timeout 5m`, referencing root configuration [`.golangci.yml`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/.golangci.yml) with official JSON schema binding. Enforces active linters (`errcheck`, `gosimple`, `govet` with `enable-all: true`, `ineffassign`, `staticcheck`, `unused`, `misspell`) and formatters (`gofmt`).
 
 ### Job 2: Test
 - **Environment**: `ubuntu-latest`
 - **Steps**:
-  1. Executes tests with the Go race detector enabled:
+  1. Executes tests with the Go race detector and cross-package coverage measurement:
      ```bash
-     go test -race -coverprofile=coverage.out -covermode=atomic ./...
+     go test -race -coverpkg=./internal/... -coverprofile=coverage.out -covermode=atomic ./...
      ```
+     > **Note on `-coverpkg=./internal/...`**: Because unit test suites reside in a decoupled test directory (`test/unit/`), the `-coverpkg=./internal/...` flag instructs the Go test runner to aggregate code coverage metrics across all production packages under `internal/` rather than evaluating only the test package directory.
   2. Parses code coverage and verifies against the minimum required threshold of **60%**:
      ```bash
      COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
@@ -104,7 +105,7 @@ Run the equivalent CI steps locally prior to opening pull requests:
 # 1. Run vet, linting, and tests with race detection
 go vet ./...
 golangci-lint run
-go test -race -coverprofile=coverage.out -covermode=atomic ./...
+go test -race -coverpkg=./internal/... -coverprofile=coverage.out -covermode=atomic ./...
 
 # 2. Check coverage percentage
 go tool cover -func=coverage.out

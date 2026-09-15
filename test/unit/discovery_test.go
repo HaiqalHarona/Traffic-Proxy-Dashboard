@@ -1,4 +1,4 @@
-package discovery
+package unit_test
 
 import (
 	"context"
@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/HaiqalHarona/Traffic-Proxy-Dashboard/internal/discovery"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 )
 
 func TestNewDockerProvider(t *testing.T) {
-	provider, err := NewDockerProvider(5 * time.Second)
+	provider, err := discovery.NewDockerProvider(5 * time.Second)
 	if err != nil {
 		t.Fatalf("NewDockerProvider failed: %v", err)
 	}
@@ -27,18 +28,15 @@ func TestNewDockerProvider(t *testing.T) {
 }
 
 func TestDockerProvider_ServicesAndSubscribe(t *testing.T) {
-	provider := &DockerProvider{
-		services: []ServiceTarget{
-			{
-				ID:       "id1",
-				Name:     "/service1",
-				HostRule: "svc1.local",
-				Healthy:  true,
-			},
+	provider := discovery.NewDockerProviderWithClient(nil, 50*time.Millisecond)
+	provider.SetServices([]discovery.ServiceTarget{
+		{
+			ID:       "id1",
+			Name:     "/service1",
+			HostRule: "svc1.local",
+			Healthy:  true,
 		},
-		eventsChan:   make(chan []ServiceTarget, 10),
-		pollInterval: time.Millisecond * 50,
-	}
+	})
 
 	services, err := provider.Services()
 	if err != nil {
@@ -143,19 +141,14 @@ func TestDockerProvider_ScanAndStart(t *testing.T) {
 		t.Fatalf("Failed to create mock docker client: %v", err)
 	}
 
-	provider := &DockerProvider{
-		cli:          cli,
-		services:     make([]ServiceTarget, 0),
-		eventsChan:   make(chan []ServiceTarget, 10),
-		pollInterval: 20 * time.Millisecond,
-	}
+	provider := discovery.NewDockerProviderWithClient(cli, 20*time.Millisecond)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Test scan
-	if err := provider.scan(ctx); err != nil {
-		t.Fatalf("scan failed: %v", err)
+	if err := provider.Scan(ctx); err != nil {
+		t.Fatalf("Scan failed: %v", err)
 	}
 
 	services, err := provider.Services()

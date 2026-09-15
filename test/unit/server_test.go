@@ -1,4 +1,4 @@
-package main
+package unit_test
 
 import (
 	"context"
@@ -9,16 +9,19 @@ import (
 
 	"github.com/HaiqalHarona/Traffic-Proxy-Dashboard/internal/metrics"
 	"github.com/HaiqalHarona/Traffic-Proxy-Dashboard/internal/proxy"
+	"github.com/HaiqalHarona/Traffic-Proxy-Dashboard/internal/server"
 )
 
 func TestSetupRouter_Endpoints(t *testing.T) {
+	t.Parallel()
+
 	collector := metrics.NewCollector()
 	proxyRouter := proxy.NewRouter(proxy.Config{
 		MaxConcurrentRequests: 10,
 		QueueTimeout:          1 * time.Second,
 	}, collector)
 
-	r := setupRouter(collector, proxyRouter, nil)
+	r := server.SetupRouter(collector, proxyRouter, nil)
 
 	// Test 1: Root route serves index.html
 	reqRoot := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -49,13 +52,15 @@ func TestSetupRouter_Endpoints(t *testing.T) {
 }
 
 func TestSetupRouter_SSEEvents(t *testing.T) {
+	t.Parallel()
+
 	collector := metrics.NewCollector()
 	proxyRouter := proxy.NewRouter(proxy.Config{
 		MaxConcurrentRequests: 10,
 		QueueTimeout:          1 * time.Second,
 	}, collector)
 
-	r := setupRouter(collector, proxyRouter, nil)
+	r := server.SetupRouter(collector, proxyRouter, nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1200*time.Millisecond)
 	defer cancel()
