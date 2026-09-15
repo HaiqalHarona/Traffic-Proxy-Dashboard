@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic Proxy Dashboard</title>
+    <title>TrafficProxy Edge Gateway — Admin Console</title>
+    <!-- Tailwind CSS, HTMX with SSE extension, and Chart.js -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
@@ -15,135 +16,844 @@
                 extend: {
                     colors: {
                         brand: {
-                            50: '#f0fdf4',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            900: '#14532d',
+                            500: '#10b981',
+                            600: '#059669',
                         }
+                    },
+                    fontFamily: {
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
                     }
                 }
             }
         }
     </script>
+    <style>
+        /* Utilitarian scrollbar & tab styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
-    <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-slate-900 border-r border-slate-800 p-6 flex flex-col justify-between">
-            <div>
-                <div class="flex items-center gap-3 mb-8">
-                    <div class="p-2 bg-brand-500/10 border border-brand-500/20 rounded-xl text-brand-500">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h1 class="font-bold text-lg leading-tight">TrafficProxy</h1>
-                        <span class="text-xs text-slate-400">Edge Gateway</span>
-                    </div>
-                </div>
+<body class="bg-zinc-950 text-zinc-100 font-sans min-h-screen antialiased flex flex-col">
 
-                <nav class="space-y-1">
-                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-800 text-white font-medium text-sm">
-                        <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                        </svg>
-                        Dashboard
-                    </a>
-                </nav>
+    <!-- Top Utility Status Bar -->
+    <header class="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+            <!-- Brand & Gateway Identification -->
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20"></span>
+                    <span class="font-bold text-sm tracking-tight text-zinc-100 font-mono">TrafficProxy</span>
+                    <span class="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono border border-zinc-700">v1.0.0</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-2 text-xs text-zinc-400 border-l border-zinc-800 pl-4">
+                    <span>Target: <code class="text-zinc-300 font-mono">:80 / :443</code></span>
+                    <span class="text-zinc-600">•</span>
+                    <span>Socket: <code class="text-zinc-300 font-mono">/var/run/docker.sock:ro</code></span>
+                    <span class="text-zinc-600">•</span>
+                    <span>Runtime: <code class="text-zinc-300 font-mono">scratch (UID 65534)</code></span>
+                </div>
             </div>
-            
-            <div class="text-xs text-slate-500 border-t border-slate-800 pt-4">
-                Single Binary Engine v1.0.0
+
+            <!-- Telemetry & Link Status -->
+            <div class="flex items-center space-x-3 text-xs">
+                <div class="flex items-center space-x-2 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded font-mono">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-zinc-300">SSE: /api/events</span>
+                </div>
+                <button onclick="switchTab('simulator')" class="hidden sm:inline-flex items-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 py-1 rounded border border-zinc-700 transition font-mono">
+                    <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span>TrafficGen</span>
+                </button>
             </div>
-        </aside>
+        </div>
 
-        <!-- Main Content -->
-        <main class="flex-1 overflow-y-auto p-8">
-            <header class="flex justify-between items-center mb-8">
-                <div>
-                    <h2 class="text-2xl font-bold">System Status</h2>
-                    <p class="text-slate-400 text-sm">Real-time telemetry and container routing metrics</p>
-                </div>
-                <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-lg text-xs font-mono">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    SSE Connected
-                </div>
-            </header>
+        <!-- Navigation Tabs -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 overflow-x-auto text-xs font-mono border-t border-zinc-800/60 pt-1">
+            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn border-b-2 border-emerald-500 text-white px-3 py-2 font-medium">
+                Overview &amp; Telemetry
+            </button>
+            <button onclick="switchTab('routes')" id="tab-btn-routes" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3 py-2 font-medium">
+                Discovered Routes
+            </button>
+            <button onclick="switchTab('throttling')" id="tab-btn-throttling" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3 py-2 font-medium">
+                Traffic &amp; Queuing
+            </button>
+            <button onclick="switchTab('discovery')" id="tab-btn-discovery" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3 py-2 font-medium">
+                Docker Engine Discovery
+            </button>
+            <button onclick="switchTab('simulator')" id="tab-btn-simulator" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3 py-2 font-medium">
+                Load Simulator (TrafficGen)
+            </button>
+            <button onclick="switchTab('system')" id="tab-btn-system" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3 py-2 font-medium">
+                Gateway &amp; Ring Buffer
+            </button>
+        </div>
+    </header>
 
-            <!-- Metrics SSE Container -->
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        <!-- ========================================================================= -->
+        <!-- TAB 1: OVERVIEW & TELEMETRY                                               -->
+        <!-- ========================================================================= -->
+        <section id="tab-overview" class="tab-content active space-y-6">
+
+            <!-- Real-Time Metrics Header (HTMX SSE Connected) -->
             <div hx-ext="sse" sse-connect="/api/events" sse-swap="metrics">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
-                        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Total Requests</span>
-                        <div class="text-3xl font-bold mt-2 font-mono text-white" id="metric-total-requests">0</div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Total Requests -->
+                    <div class="bg-zinc-900 border border-zinc-800 rounded p-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Total Requests</span>
+                            <span class="text-[10px] text-zinc-500 font-mono">atomic.Uint64</span>
+                        </div>
+                        <div id="metric-total-requests" class="text-3xl font-bold font-mono text-white mt-2">0</div>
+                        <p class="text-[11px] text-zinc-500 mt-1">Cumulative HTTP handled</p>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
-                        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Active Concurrency</span>
-                        <div class="text-3xl font-bold mt-2 font-mono text-brand-500" id="metric-active-concurrency">0</div>
+
+                    <!-- Active Concurrency -->
+                    <div class="bg-zinc-900 border border-zinc-800 rounded p-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Active Concurrency</span>
+                            <span class="text-[10px] text-emerald-500/80 font-mono">atomic.Int64</span>
+                        </div>
+                        <div id="metric-active-concurrency" class="text-3xl font-bold font-mono text-emerald-400 mt-2">0</div>
+                        <p class="text-[11px] text-zinc-500 mt-1">Current downstream in-flight</p>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
-                        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Discovered Services</span>
-                        <div class="text-3xl font-bold mt-2 font-mono text-sky-400" id="metric-discovered-services">0</div>
+
+                    <!-- Discovered Services -->
+                    <div class="bg-zinc-900 border border-zinc-800 rounded p-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Discovered Services</span>
+                            <span class="text-[10px] text-sky-400/80 font-mono">Docker API</span>
+                        </div>
+                        <div id="metric-discovered-services" class="text-3xl font-bold font-mono text-sky-400 mt-2">0</div>
+                        <p class="text-[11px] text-zinc-500 mt-1">Healthy labeled containers</p>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
-                        <span class="text-slate-400 text-xs font-medium uppercase tracking-wider">Queued Requests</span>
-                        <div class="text-3xl font-bold mt-2 font-mono text-amber-400" id="metric-queued-requests">0</div>
+
+                    <!-- Queued Requests -->
+                    <div class="bg-zinc-900 border border-zinc-800 rounded p-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Queued Requests</span>
+                            <span class="text-[10px] text-amber-400/80 font-mono">Semaphore</span>
+                        </div>
+                        <div id="metric-queued-requests" class="text-3xl font-bold font-mono text-amber-400 mt-2">0</div>
+                        <p class="text-[11px] text-zinc-500 mt-1">Waiting for concurrency slot</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Charts Section -->
-            <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl mb-8">
-                <h3 class="text-lg font-semibold mb-4">Live Traffic Throughput</h3>
-                <div class="h-64">
+            <!-- Telemetry Graph Panel -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded p-4 sm:p-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-3 border-b border-zinc-800 gap-2">
+                    <div>
+                        <h2 class="text-sm font-semibold text-zinc-200">Live Gateway Telemetry Stream</h2>
+                        <p class="text-xs text-zinc-400">1-second streaming telemetry over Server-Sent Events (<code class="font-mono text-zinc-300">event: telemetry</code>)</p>
+                    </div>
+                    <div class="flex items-center space-x-4 text-xs font-mono">
+                        <span class="flex items-center space-x-1.5">
+                            <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>
+                            <span class="text-zinc-300">Active Concurrency</span>
+                        </span>
+                        <span class="flex items-center space-x-1.5">
+                            <span class="w-2.5 h-2.5 rounded-sm bg-amber-500"></span>
+                            <span class="text-zinc-300">Queued Requests</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="h-64 w-full">
                     <canvas id="trafficChart"></canvas>
                 </div>
             </div>
-        </main>
-    </div>
 
+            <!-- Operational Invariants & Quick Status Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
+                    <div class="flex items-center justify-between text-zinc-400 pb-1 border-b border-zinc-800">
+                        <span class="font-semibold text-zinc-300">CONCURRENCY GATING</span>
+                        <span class="text-emerald-400">ACTIVE</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Max Concurrency:</span>
+                        <span class="text-zinc-200 font-bold">5,000 slots</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Queue Timeout:</span>
+                        <span class="text-zinc-200">3,000 ms</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Rejection Code:</span>
+                        <span class="text-rose-400">HTTP 503 (Overloaded)</span>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
+                    <div class="flex items-center justify-between text-zinc-400 pb-1 border-b border-zinc-800">
+                        <span class="font-semibold text-zinc-300">DISCOVERY SCANNER</span>
+                        <span class="text-sky-400">POLLING</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Interval:</span>
+                        <span class="text-zinc-200">5.0 seconds</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Daemon Socket:</span>
+                        <span class="text-zinc-200">/var/run/docker.sock</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Missing Route:</span>
+                        <span class="text-rose-400">HTTP 502 (Bad Gateway)</span>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
+                    <div class="flex items-center justify-between text-zinc-400 pb-1 border-b border-zinc-800">
+                        <span class="font-semibold text-zinc-300">SECURITY &amp; CONTAINER</span>
+                        <span class="text-emerald-400">ISOLATED</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>User Execution:</span>
+                        <span class="text-zinc-200">UID 65534 (nobody)</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Root Filesystem:</span>
+                        <span class="text-zinc-200">read_only: true</span>
+                    </div>
+                    <div class="flex justify-between text-zinc-400">
+                        <span>Kernel Privileges:</span>
+                        <span class="text-zinc-200">no-new-privileges: true</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- TAB 2: DISCOVERED ROUTES & BACKENDS                                       -->
+        <!-- ========================================================================= -->
+        <section id="tab-routes" class="tab-content space-y-6">
+
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-800">
+                <div>
+                    <h2 class="text-base font-semibold text-zinc-200">Active Routing Table</h2>
+                    <p class="text-xs text-zinc-400">Containers automatically registered via Docker Engine label inspection</p>
+                </div>
+                <div class="flex items-center space-x-2 text-xs font-mono">
+                    <input type="text" id="route-search" placeholder="Filter by host rule..." class="bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600">
+                    <button onclick="refreshMockRoutes()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded border border-zinc-700 transition">Scan Now</button>
+                </div>
+            </div>
+
+            <!-- Route Table -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead class="bg-zinc-950/60 border-b border-zinc-800 text-zinc-400 uppercase text-[10px]">
+                            <tr>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4">Host Rule</th>
+                                <th class="py-3 px-4">Container Target</th>
+                                <th class="py-3 px-4">Internal IP / Port</th>
+                                <th class="py-3 px-4">Pool Strategy</th>
+                                <th class="py-3 px-4">Concurrency</th>
+                                <th class="py-3 px-4 text-right">Quick Test</th>
+                            </tr>
+                        </thead>
+                        <tbody id="routes-table-body" class="divide-y divide-zinc-800 text-zinc-300">
+                            <!-- Placeholder Route 1: app.local -->
+                            <tr class="hover:bg-zinc-800/40 transition">
+                                <td class="py-3 px-4">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        ● HEALTHY
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 font-bold text-white">app.local</td>
+                                <td class="py-3 px-4 text-zinc-300">backend-api-local</td>
+                                <td class="py-3 px-4 text-zinc-400">172.20.0.3:5678</td>
+                                <td class="py-3 px-4 text-zinc-400">Round-Robin</td>
+                                <td class="py-3 px-4 text-zinc-400">0 / 5000</td>
+                                <td class="py-3 px-4 text-right">
+                                    <button onclick="copyCurl('app.local')" class="text-zinc-400 hover:text-white underline">curl -H</button>
+                                </td>
+                            </tr>
+                            <!-- Placeholder Route 2: slow.local -->
+                            <tr class="hover:bg-zinc-800/40 transition">
+                                <td class="py-3 px-4">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                        ● DELAYED (200ms)
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 font-bold text-white">slow.local</td>
+                                <td class="py-3 px-4 text-zinc-300">backend-slow-local</td>
+                                <td class="py-3 px-4 text-zinc-400">172.20.0.4:8080</td>
+                                <td class="py-3 px-4 text-zinc-400">Weighted Sem</td>
+                                <td class="py-3 px-4 text-zinc-400">0 / 5000</td>
+                                <td class="py-3 px-4 text-right">
+                                    <button onclick="copyCurl('slow.local')" class="text-zinc-400 hover:text-white underline">curl -H</button>
+                                </td>
+                            </tr>
+                            <!-- Placeholder Route 3: whoami.local -->
+                            <tr class="hover:bg-zinc-800/40 transition">
+                                <td class="py-3 px-4">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        ● HEALTHY
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 font-bold text-white">whoami.local</td>
+                                <td class="py-3 px-4 text-zinc-300">whoami-service</td>
+                                <td class="py-3 px-4 text-zinc-400">172.20.0.5:80</td>
+                                <td class="py-3 px-4 text-zinc-400">Least-Conn</td>
+                                <td class="py-3 px-4 text-zinc-400">0 / 5000</td>
+                                <td class="py-3 px-4 text-right">
+                                    <button onclick="copyCurl('whoami.local')" class="text-zinc-400 hover:text-white underline">curl -H</button>
+                                </td>
+                            </tr>
+                            <!-- Placeholder Route 4: metrics.local -->
+                            <tr class="hover:bg-zinc-800/40 transition">
+                                <td class="py-3 px-4">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        ● HEALTHY
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 font-bold text-white">metrics.local</td>
+                                <td class="py-3 px-4 text-zinc-300">grafana-service</td>
+                                <td class="py-3 px-4 text-zinc-400">172.20.0.6:3000</td>
+                                <td class="py-3 px-4 text-zinc-400">Single-Host</td>
+                                <td class="py-3 px-4 text-zinc-400">0 / 5000</td>
+                                <td class="py-3 px-4 text-right">
+                                    <button onclick="copyCurl('metrics.local')" class="text-zinc-400 hover:text-white underline">curl -H</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- How to Expose Container Notice -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded p-4 text-xs font-mono space-y-2">
+                <div class="flex items-center justify-between text-zinc-300 font-semibold">
+                    <span>ADDING CONTAINERS VIA DOCKER LABELS</span>
+                    <span class="text-zinc-500">Auto-Reload (0 Downtime)</span>
+                </div>
+                <p class="text-zinc-400 font-sans">
+                    TrafficProxy continuously listens to container lifecycle events. Add these labels to your container definition:
+                </p>
+                <div class="bg-zinc-950 p-3 rounded border border-zinc-800 text-zinc-300 text-[11px] overflow-x-auto">
+labels:<br>
+&nbsp;&nbsp;- <span class="text-emerald-400">"traffic-proxy.enable=true"</span><br>
+&nbsp;&nbsp;- <span class="text-emerald-400">"traffic-proxy.rule=app.local"</span><br>
+&nbsp;&nbsp;- <span class="text-zinc-500">"traffic-proxy.port=8080"&nbsp;&nbsp;# optional, falls back to exposed port or 80</span>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- TAB 3: TRAFFIC & CONCURRENCY THROTTLING                                   -->
+        <!-- ========================================================================= -->
+        <section id="tab-throttling" class="tab-content space-y-6">
+
+            <div class="pb-3 border-b border-zinc-800">
+                <h2 class="text-base font-semibold text-zinc-200">Concurrency Management &amp; Queue Control</h2>
+                <p class="text-xs text-zinc-400">Weighted semaphore rate governance preventing downstream service saturation</p>
+            </div>
+
+            <!-- Concurrency Engine Details -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-4">
+                    <h3 class="text-sm font-semibold text-zinc-200 font-mono">Semaphore Configuration</h3>
+                    
+                    <div class="space-y-3 text-xs font-mono">
+                        <div>
+                            <div class="flex justify-between text-zinc-400 mb-1">
+                                <span>Global Concurrency Ceiling</span>
+                                <span class="text-emerald-400 font-bold">5,000 concurrent reqs</span>
+                            </div>
+                            <div class="w-full bg-zinc-800 h-2 rounded overflow-hidden">
+                                <div class="bg-emerald-500 h-full w-[2%]"></div>
+                            </div>
+                            <span class="text-[10px] text-zinc-500">Set via PROXY_MAX_CONCURRENT</span>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-zinc-400 mb-1">
+                                <span>Queue Acquisition Deadline</span>
+                                <span class="text-amber-400 font-bold">3,000 ms</span>
+                            </div>
+                            <div class="w-full bg-zinc-800 h-2 rounded overflow-hidden">
+                                <div class="bg-amber-500 h-full w-[15%]"></div>
+                            </div>
+                            <span class="text-[10px] text-zinc-500">Context timeout before issuing 503</span>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-zinc-400 mb-1">
+                                <span>Persistent Pool (MaxIdleConns)</span>
+                                <span class="text-zinc-200">100 / host: 10</span>
+                            </div>
+                            <div class="w-full bg-zinc-800 h-2 rounded overflow-hidden">
+                                <div class="bg-sky-500 h-full w-[20%]"></div>
+                            </div>
+                            <span class="text-[10px] text-zinc-500">Idle timeout: 90s, keep-alive active</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-4">
+                    <h3 class="text-sm font-semibold text-zinc-200 font-mono">HTTP Response Status Ledger</h3>
+
+                    <div class="space-y-3 text-xs font-mono">
+                        <div class="flex items-center justify-between p-2.5 bg-zinc-950 rounded border border-zinc-800">
+                            <div>
+                                <span class="text-emerald-400 font-bold">200 OK</span>
+                                <p class="text-[11px] text-zinc-400 font-sans">Successful downstream response</p>
+                            </div>
+                            <span class="text-sm font-bold text-zinc-200">99.85%</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-2.5 bg-zinc-950 rounded border border-zinc-800">
+                            <div>
+                                <span class="text-rose-400 font-bold">502 Bad Gateway</span>
+                                <p class="text-[11px] text-zinc-400 font-sans">No route matches Host rule or socket refused</p>
+                            </div>
+                            <span class="text-sm font-bold text-zinc-200">0.10%</span>
+                        </div>
+
+                        <div class="flex items-center justify-between p-2.5 bg-zinc-950 rounded border border-zinc-800">
+                            <div>
+                                <span class="text-amber-400 font-bold">503 Service Unavailable</span>
+                                <p class="text-[11px] text-zinc-400 font-sans">Queue acquisition timeout (&gt; 3s)</p>
+                            </div>
+                            <span class="text-sm font-bold text-zinc-200">0.05%</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Host Normalization Specification -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded p-4 text-xs font-mono space-y-2">
+                <span class="text-zinc-300 font-bold">HOST NORMALIZATION INVARIANTS</span>
+                <p class="text-zinc-400 font-sans">
+                    Incoming request headers like <code class="text-zinc-200">Host: APP.Local:8080</code> are automatically stripped of port declarations and converted to lower-case (<code class="text-emerald-400">app.local</code>) prior to route table resolution.
+                </p>
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- TAB 4: DOCKER ENGINE DISCOVERY                                            -->
+        <!-- ========================================================================= -->
+        <section id="tab-discovery" class="tab-content space-y-6">
+
+            <div class="pb-3 border-b border-zinc-800">
+                <h2 class="text-base font-semibold text-zinc-200">Docker Engine Discovery Mechanism</h2>
+                <p class="text-xs text-zinc-400">Pluggable discovery provider inspecting containers over read-only Docker daemon socket</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Scanner Parameters -->
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-3 text-xs font-mono">
+                    <h3 class="text-sm font-semibold text-zinc-200">Provider Specifications</h3>
+                    
+                    <div class="space-y-2 border-t border-zinc-800 pt-3">
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Provider Interface:</span>
+                            <span class="text-zinc-200">internal/discovery.Provider</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Active Driver:</span>
+                            <span class="text-emerald-400">DockerProvider</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Socket Endpoint:</span>
+                            <span class="text-zinc-200">unix:///var/run/docker.sock</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Mount Permission:</span>
+                            <span class="text-zinc-200">:ro (Strictly Read-Only)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Scan Cadence:</span>
+                            <span class="text-zinc-200">5 seconds (time.Ticker)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Target Resolution:</span>
+                            <span class="text-zinc-200">Bridge Network IP + Port</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Label Reference Card -->
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-3 text-xs font-mono">
+                    <h3 class="text-sm font-semibold text-zinc-200">Supported Container Labels</h3>
+
+                    <div class="space-y-2 border-t border-zinc-800 pt-3">
+                        <div>
+                            <div class="flex items-center justify-between text-emerald-400">
+                                <code>traffic-proxy.enable</code>
+                                <span class="text-[10px] text-zinc-500">REQUIRED</span>
+                            </div>
+                            <p class="text-[11px] text-zinc-400 font-sans">Must be set to "true" to include in proxy router</p>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between text-emerald-400">
+                                <code>traffic-proxy.rule</code>
+                                <span class="text-[10px] text-zinc-500">REQUIRED</span>
+                            </div>
+                            <p class="text-[11px] text-zinc-400 font-sans">Virtual host matching rule (e.g. app.local, api.domain.com)</p>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between text-zinc-300">
+                                <code>traffic-proxy.port</code>
+                                <span class="text-[10px] text-zinc-500">OPTIONAL</span>
+                            </div>
+                            <p class="text-[11px] text-zinc-400 font-sans">Internal target port (defaults to exposed port or 80)</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Discovery Code Example -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded p-4 text-xs font-mono space-y-2">
+                <div class="flex justify-between items-center text-zinc-300 font-semibold">
+                    <span>COMPLETE DOCKER COMPOSE EXAMPLE</span>
+                    <button onclick="copyCompose()" class="text-xs text-emerald-400 hover:underline">Copy YAML</button>
+                </div>
+                <pre class="bg-zinc-950 p-3 rounded border border-zinc-800 text-zinc-300 text-[11px] overflow-x-auto"><code>version: '3.8'
+services:
+  traffic-proxy:
+    image: ghcr.io/haiqalharona/traffic-proxy:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+
+  my-app:
+    image: hashicorp/http-echo:0.2.3
+    command: ["-text=Hello World", "-listen=:5678"]
+    labels:
+      - "traffic-proxy.enable=true"
+      - "traffic-proxy.rule=hello.local"
+      - "traffic-proxy.port=5678"</code></pre>
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- TAB 5: LOAD SIMULATOR & TRAFFICGEN                                        -->
+        <!-- ========================================================================= -->
+        <section id="tab-simulator" class="tab-content space-y-6">
+
+            <div class="pb-3 border-b border-zinc-800">
+                <h2 class="text-base font-semibold text-zinc-200">Synthetic Traffic Generator &amp; Load Testing</h2>
+                <p class="text-xs text-zinc-400">Concurrent benchmark harness (<code class="font-mono text-zinc-300">cmd/trafficgen</code>) and shell seed tools</p>
+            </div>
+
+            <!-- Simulator Control Panel -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+                
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
+                    <span class="text-zinc-400 font-semibold uppercase text-[10px]">Active Test Profile</span>
+                    <div class="text-base font-bold text-white">Local Compose Mesh</div>
+                    <p class="text-[11px] text-zinc-500 font-sans">Spawns 15 concurrent worker goroutines pushing mixed traffic</p>
+                </div>
+
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
+                    <span class="text-zinc-400 font-semibold uppercase text-[10px]">Worker Concurrency</span>
+                    <div class="text-base font-bold text-emerald-400">15 Workers</div>
+                    <p class="text-[11px] text-zinc-500 font-sans">Configurable via <code class="text-zinc-300">-concurrency=N</code> flag</p>
+                </div>
+
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
+                    <span class="text-zinc-400 font-semibold uppercase text-[10px]">Target Destination</span>
+                    <div class="text-base font-bold text-sky-400">http://localhost:80</div>
+                    <p class="text-[11px] text-zinc-500 font-sans">Reverse proxy frontend listener</p>
+                </div>
+
+            </div>
+
+            <!-- Command Line Reproduction -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-3 text-xs font-mono">
+                <h3 class="text-sm font-semibold text-zinc-200">Executing TrafficGen from Terminal</h3>
+                <p class="text-zinc-400 font-sans">
+                    Run the bundled Go generator to test concurrency throttling, SSE streaming, and route isolation:
+                </p>
+
+                <div class="bg-zinc-950 p-3 rounded border border-zinc-800 text-zinc-300 space-y-2 text-[11px]">
+                    <div># 1. Start traffic generator with 20 workers for 30 seconds:</div>
+                    <div class="text-emerald-400 select-all">go run ./cmd/trafficgen -target=http://localhost:80 -concurrency=20 -duration=30s</div>
+                    
+                    <div class="pt-2"># 2. Or trigger the automated seed script:</div>
+                    <div class="text-emerald-400 select-all">bash scripts/seed-traffic.sh</div>
+                </div>
+
+                <div class="pt-2 text-zinc-400 font-sans text-xs">
+                    TrafficGen dispatches requests across four target profiles:
+                    <ul class="list-disc pl-5 mt-1 space-y-1 font-mono text-zinc-300 text-[11px]">
+                        <li><strong class="text-white">app.local</strong>: 80% distribution (Normal 200 OK throughput)</li>
+                        <li><strong class="text-white">slow.local</strong>: 10% distribution (Deliberate 200ms delay to exercise queues)</li>
+                        <li><strong class="text-white">unknown.local</strong>: 10% distribution (Validates 502 Bad Gateway handling)</li>
+                    </ul>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- TAB 6: GATEWAY & RING BUFFER                                              -->
+        <!-- ========================================================================= -->
+        <section id="tab-system" class="tab-content space-y-6">
+
+            <div class="pb-3 border-b border-zinc-800">
+                <h2 class="text-base font-semibold text-zinc-200">Gateway Architecture &amp; Telemetry Ring Buffer</h2>
+                <p class="text-xs text-zinc-400">Lock-free memory ring buffer and low-level binary runtime diagnostics</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Ring Buffer Specifications -->
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-3 text-xs font-mono">
+                    <h3 class="text-sm font-semibold text-zinc-200">Lock-Free Ring Buffer Engine</h3>
+
+                    <div class="space-y-2 border-t border-zinc-800 pt-3">
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Implementation:</span>
+                            <span class="text-zinc-200">internal/metrics.TelemetryRingBuffer</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Buffer Slot Capacity:</span>
+                            <span class="text-emerald-400">1024 slots (Power-of-Two)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Slot Index Masking:</span>
+                            <span class="text-zinc-200">writeIdx &amp; 0x3FF (Zero Modulo)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Heap Allocations:</span>
+                            <span class="text-zinc-200">0 allocs / slot write</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Thread Safety:</span>
+                            <span class="text-zinc-200">sync.RWMutex protected reads</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Binary & Environment Specifications -->
+                <div class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-3 text-xs font-mono">
+                    <h3 class="text-sm font-semibold text-zinc-200">Binary Compilation &amp; Image</h3>
+
+                    <div class="space-y-2 border-t border-zinc-800 pt-3">
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Base Image:</span>
+                            <span class="text-emerald-400">scratch (Zero-OS footprint)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Static Linking:</span>
+                            <span class="text-zinc-200">CGO_ENABLED=0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Stripped Symbols:</span>
+                            <span class="text-zinc-200">-ldflags="-s -w -extldflags '-static'"</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Final Image Size:</span>
+                            <span class="text-zinc-200">&lt; 20 MB</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Embedded Assets:</span>
+                            <span class="text-zinc-200">//go:embed static/* (ui.Assets)</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Live Event Log Simulator -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-3">
+                <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <span class="text-xs font-semibold text-zinc-200 font-mono">STRUCTURED GATEWAY LOG STREAM</span>
+                    <span class="text-[10px] text-zinc-500 font-mono">slog (JSON Format)</span>
+                </div>
+                <div id="log-console" class="bg-zinc-950 p-3 rounded border border-zinc-800 font-mono text-[11px] text-zinc-400 space-y-1 max-h-48 overflow-y-auto">
+                    <div><span class="text-zinc-600">[INFO]</span> <span class="text-zinc-500">20:50:01</span> Gateway initialization completed. Listening on :80</div>
+                    <div><span class="text-zinc-600">[INFO]</span> <span class="text-zinc-500">20:50:02</span> Docker provider connected to /var/run/docker.sock</div>
+                    <div><span class="text-emerald-500/80">[ROUTE]</span> <span class="text-zinc-500">20:50:02</span> Registered backend: app.local -&gt; http://172.20.0.3:5678</div>
+                    <div><span class="text-emerald-500/80">[ROUTE]</span> <span class="text-zinc-500">20:50:02</span> Registered backend: slow.local -&gt; http://172.20.0.4:8080</div>
+                    <div><span class="text-emerald-500/80">[ROUTE]</span> <span class="text-zinc-500">20:50:02</span> Registered backend: whoami.local -&gt; http://172.20.0.5:80</div>
+                    <div><span class="text-emerald-500/80">[ROUTE]</span> <span class="text-zinc-500">20:50:02</span> Registered backend: metrics.local -&gt; http://172.20.0.6:3000</div>
+                    <div><span class="text-sky-500/80">[SSE]</span> <span class="text-zinc-500">20:50:03</span> Client subscribed to /api/events telemetry channel</div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-zinc-800/80 bg-zinc-950 py-4 text-center text-xs text-zinc-600 font-mono">
+        TrafficProxy Edge Gateway • Designed for homelabs &amp; edge servers • Dual SSE &amp; HTMX Engine
+    </footer>
+
+    <!-- Tab Switching & Chart Initialization Scripts -->
     <script>
+        // Tab switching logic
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('border-emerald-500', 'text-white');
+                el.classList.add('border-transparent', 'text-zinc-400');
+            });
+
+            const targetContent = document.getElementById('tab-' + tabName);
+            const targetBtn = document.getElementById('tab-btn-' + tabName);
+
+            if (targetContent) targetContent.classList.add('active');
+            if (targetBtn) {
+                targetBtn.classList.add('border-emerald-500', 'text-white');
+                targetBtn.classList.remove('border-transparent', 'text-zinc-400');
+            }
+
+            // Trigger chart resize if switching to overview
+            if (tabName === 'overview' && window.trafficChart) {
+                window.trafficChart.resize();
+            }
+        }
+
+        // Copy helpers
+        function copyCurl(host) {
+            const cmd = `curl -H "Host: ${host}" http://localhost/`;
+            navigator.clipboard.writeText(cmd);
+            alert(`Copied to clipboard: ${cmd}`);
+        }
+
+        function copyCompose() {
+            const yaml = `version: '3.8'\nservices:\n  traffic-proxy:\n    image: ghcr.io/haiqalharona/traffic-proxy:latest\n    ports:\n      - "80:80"\n    volumes:\n      - /var/run/docker.sock:/var/run/docker.sock:ro`;
+            navigator.clipboard.writeText(yaml);
+            alert("Docker Compose snippet copied to clipboard");
+        }
+
+        function refreshMockRoutes() {
+            const log = document.getElementById('log-console');
+            if (log) {
+                const now = new Date().toLocaleTimeString();
+                const entry = document.createElement('div');
+                entry.innerHTML = `<span class="text-sky-500/80">[SCAN]</span> <span class="text-zinc-500">${now}</span> Manual Docker socket scan triggered. Route table synchronized.`;
+                log.appendChild(entry);
+                log.scrollTop = log.scrollHeight;
+            }
+        }
+
+        // Chart.js Setup with Utilitarian Engineering Dark Mode Aesthetics
         const ctx = document.getElementById('trafficChart').getContext('2d');
-        const trafficChart = new Chart(ctx, {
+        window.trafficChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [],
-                datasets: [{
-                    label: 'Total Requests',
-                    data: [],
-                    borderColor: '#22c55e',
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
+                datasets: [
+                    {
+                        label: 'Active Concurrency',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                        fill: true,
+                        borderWidth: 1.5,
+                        pointRadius: 2,
+                        pointHoverRadius: 4,
+                        tension: 0.2
+                    },
+                    {
+                        label: 'Queued Requests',
+                        data: [],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                        fill: true,
+                        borderWidth: 1.5,
+                        pointRadius: 2,
+                        pointHoverRadius: 4,
+                        tension: 0.2
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
                 scales: {
-                    x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
-                    y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } }
+                    x: {
+                        grid: { color: '#27272a' },
+                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 10 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#27272a' },
+                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 10 }, stepSize: 1 }
+                    }
                 },
                 plugins: {
-                    legend: { labels: { color: '#94a3b8' } }
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: '#18181b',
+                        titleColor: '#f4f4f5',
+                        bodyColor: '#e4e4e7',
+                        borderColor: '#3f3f46',
+                        borderWidth: 1,
+                        titleFont: { family: 'ui-monospace, monospace', size: 11 },
+                        bodyFont: { family: 'ui-monospace, monospace', size: 11 }
+                    }
                 }
             }
         });
 
+        // HTMX SSE Event Handler for Real-Time Telemetry
         document.body.addEventListener('htmx:sseMessage', function(e) {
             if (e.detail.type === 'telemetry') {
-                const data = JSON.parse(e.detail.data);
-                const now = new Date().toLocaleTimeString();
-                
-                if (trafficChart.data.labels.length > 20) {
-                    trafficChart.data.labels.shift();
-                    trafficChart.data.datasets[0].data.shift();
+                try {
+                    const data = JSON.parse(e.detail.data);
+                    const timeLabel = new Date().toLocaleTimeString();
+
+                    const chart = window.trafficChart;
+                    if (chart.data.labels.length > 25) {
+                        chart.data.labels.shift();
+                        chart.data.datasets[0].data.shift();
+                        chart.data.datasets[1].data.shift();
+                    }
+
+                    chart.data.labels.push(timeLabel);
+                    chart.data.datasets[0].data.push(data.active_concurrency || 0);
+                    chart.data.datasets[1].data.push(data.queued_requests || 0);
+                    chart.update('none');
+                } catch (err) {
+                    console.error("Failed to parse telemetry JSON", err);
                 }
-                
-                trafficChart.data.labels.push(now);
-                trafficChart.data.datasets[0].data.push(data.total_requests);
-                trafficChart.update();
             }
         });
     </script>
