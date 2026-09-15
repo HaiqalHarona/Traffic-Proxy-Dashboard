@@ -14,15 +14,15 @@ import (
 
 // ServiceTarget represents a discovered downstream backend.
 type ServiceTarget struct {
+	TargetURL *url.URL
+	Labels    map[string]string
+	CreatedAt time.Time
 	ID        string
 	Name      string
 	Host      string
-	Port      int
 	HostRule  string
-	TargetURL *url.URL
-	Labels    map[string]string
+	Port      int
 	Healthy   bool
-	CreatedAt time.Time
 }
 
 // Provider abstracts service discovery backends (Docker, Swarm, Nomad, Kubernetes, Gossip).
@@ -36,9 +36,9 @@ type Provider interface {
 // DockerProvider discovers backends from local Docker daemon using container labels.
 type DockerProvider struct {
 	cli          *client.Client
-	mu           sync.RWMutex
 	services     []ServiceTarget
 	eventsChan   chan []ServiceTarget
+	mu           sync.RWMutex
 	pollInterval time.Duration
 }
 

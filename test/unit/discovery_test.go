@@ -147,8 +147,8 @@ func TestDockerProvider_ScanAndStart(t *testing.T) {
 	defer cancel()
 
 	// Test scan
-	if err := provider.Scan(ctx); err != nil {
-		t.Fatalf("Scan failed: %v", err)
+	if scanErr := provider.Scan(ctx); scanErr != nil {
+		t.Fatalf("Scan failed: %v", scanErr)
 	}
 
 	services, err := provider.Services()
