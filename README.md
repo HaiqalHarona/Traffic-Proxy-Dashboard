@@ -38,14 +38,18 @@ Traffic-Proxy-Dashboard/
 │   └── workflows/
 │       └── ci.yml           # GitHub Actions CI/CD workflow
 ├── cmd/
-│   └── proxy/
-│       └── main.go          # Binary entrypoint: Chi routing, SSE telemetry, static UI serving
+│   ├── proxy/
+│   │   └── main.go          # Binary entrypoint: Chi routing, SSE telemetry, static UI serving
+│   └── trafficgen/
+│       └── main.go          # Synthetic traffic generator simulating diverse routing loads
 ├── doc/
 │   ├── DEVELOPER_GUIDE.md   # In-depth file and directory reference
 │   ├── PIPELINE.md          # CI/CD pipeline documentation
 │   ├── UPDATE.md            # Container update and maintenance guide
 │   └── USER_GUIDE.md        # User and deployment guide
 ├── internal/
+│   ├── config/
+│   │   └── config.go        # Environment variable runtime configurations
 │   ├── discovery/
 │   │   └── discovery.go     # Service discovery interface & Docker label provider
 │   ├── metrics/
@@ -54,6 +58,8 @@ Traffic-Proxy-Dashboard/
 │   │   └── proxy.go         # Traffic queue management, semaphores & reverse proxying
 │   └── server/
 │       └── server.go        # Chi HTTP router, telemetry SSE handler, static UI serving
+├── scripts/
+│   └── seed-traffic.sh      # CLI helper to generate bursts and stream SSE telemetry
 ├── test/
 │   └── unit/                # Dedicated unit test suite decoupled from production code
 ├── ui/
@@ -64,6 +70,7 @@ Traffic-Proxy-Dashboard/
 ├── .golangci.yml            # golangci-lint linter configurations
 ├── Dockerfile               # Multi-stage scratch build (< 20MB)
 ├── docker-compose.yml       # Production Compose configuration
+├── docker-compose.local.yml # Local development harness with mock backends
 └── go.mod                   # Module definitions and dependencies
 ```
 
@@ -78,6 +85,28 @@ docker compose up -d --build
 ```
 
 Access the dashboard at `http://localhost`.
+
+### Local Development & Traffic Replication
+
+To test local builds with mock backends and synthetic traffic:
+
+```bash
+# 1. Start local proxy with fast and slow backends
+docker compose -f docker-compose.local.yml up -d --build
+
+# 2. Seed diverse traffic patterns (runs for 30s)
+./scripts/seed-traffic.sh start 20 30s
+
+# 3. Simulate high-concurrency bursts (triggers 503s & semaphore queues)
+./scripts/seed-traffic.sh burst 40
+
+# 4. View live SSE telemetry stream in terminal
+./scripts/seed-traffic.sh sse
+
+# 5. Stop background generator and clean up containers
+./scripts/seed-traffic.sh stop
+docker compose -f docker-compose.local.yml down -v
+```
 
 ---
 
