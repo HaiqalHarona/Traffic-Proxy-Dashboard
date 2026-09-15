@@ -53,7 +53,7 @@ func (r *Router) RegisterBackend(hostRule string, targetURL *url.URL) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	hostRule = normalizeHost(hostRule)
+	hostRule = NormalizeHost(hostRule)
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 	proxy.Transport = &http.Transport{
 		MaxIdleConns:        100,
@@ -71,7 +71,7 @@ func (r *Router) UpdateBackends(routes map[string]*url.URL) {
 
 	newBackends := make(map[string]*httputil.ReverseProxy, len(routes))
 	for hostRule, targetURL := range routes {
-		cleanHost := normalizeHost(hostRule)
+		cleanHost := NormalizeHost(hostRule)
 		proxy := httputil.NewSingleHostReverseProxy(targetURL)
 		proxy.Transport = &http.Transport{
 			MaxIdleConns:        100,
@@ -104,7 +104,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.metrics.ActiveConcurrency.Add(1)
 	defer r.metrics.ActiveConcurrency.Add(-1)
 
-	cleanHost := normalizeHost(req.Host)
+	cleanHost := NormalizeHost(req.Host)
 
 	r.mu.RLock()
 	proxy, exists := r.backends[cleanHost]
@@ -118,7 +118,8 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	proxy.ServeHTTP(w, req)
 }
 
-func normalizeHost(host string) string {
+// NormalizeHost extracts and lowercases the host name without port.
+func NormalizeHost(host string) string {
 	if strings.Contains(host, ":") {
 		h, _, err := net.SplitHostPort(host)
 		if err == nil {

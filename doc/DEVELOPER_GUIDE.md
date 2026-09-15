@@ -14,11 +14,14 @@ Comprehensive architectural, structural, and technical reference for all directo
     - [internal/discovery/](#internaldiscovery)
     - [internal/metrics/](#internalmetrics)
     - [internal/proxy/](#internalproxy)
+    - [internal/server/](#internalserver)
   - [ui/](#ui)
+  - [test/](#test)
   - [.github/](#github)
   - [doc/](#doc)
   - [.agents/](#agents)
-- [Control & Data Flows](#control--data-flows)
+- [Traffic Monitoring & Control Flow](#traffic-monitoring--control-flow)
+- [Go (Golang) Primer for Beginners](#go-golang-primer-for-beginners)
 - [Building & Testing Locally](#building--testing-locally)
 
 ---
@@ -38,6 +41,7 @@ TrafficProxy is a container-aware HTTP reverse proxy and edge gateway. It automa
 | `Dockerfile` | Multi-stage Docker build recipe compiling a statically linked binary and deploying it into a scratch image. |
 | `docker-compose.yml` | Container orchestration specification mounting `/var/run/docker.sock` in read-only mode with least-privilege security flags. |
 | `go.mod` | Go module declaration (`github.com/HaiqalHarona/Traffic-Proxy-Dashboard`), specifying Go version 1.22+ and third-party dependencies. |
+| `go.sum` | Checksums for reproducible Go module dependencies and builds. |
 | `.golangci.yml` | Linter configuration for `golangci-lint` detailing active linters, options, and run timeouts. |
 | `.dockerignore` | Build context exclude file ensuring minimal layer footprints during image compilation. |
 | `.gitignore` | Git version control exclude specifications for binaries, test coverages, and IDE configurations. |
@@ -60,7 +64,7 @@ TrafficProxy is a container-aware HTTP reverse proxy and edge gateway. It automa
   - Declares core dependencies including `github.com/go-chi/chi/v5` (HTTP router and middleware), `github.com/docker/docker` (Docker Engine client API), and `golang.org/x/sync/semaphore` (weighted semaphore implementation).
 
 - **`.golangci.yml`**:
-  - Configures `golangci-lint` (version 2 schema). Enables `errcheck`, `gosimple`, `govet` (with `enable-all: true`), `ineffassign`, `staticcheck`, `unused`, `gofmt`, and `misspell`. Sets execution timeout to 5 minutes.
+  - Configures `golangci-lint` with official JSON schema binding. Enables linters (`errcheck`, `gosimple`, `govet` with `enable-all: true`, `ineffassign`, `staticcheck`, `unused`, `misspell`) and formatters (`gofmt`). Sets execution timeout to 5 minutes.
 
 - **`.dockerignore`**:
   - Excludes `.git`, `.gitignore`, `README.md`, `Dockerfile`, `docker-compose.yml`, `learning_proposal.md`, and `*.log` from the Docker build context.
@@ -76,18 +80,10 @@ Application entrypoints and runnable binary mains.
 
 #### `cmd/proxy/`
 - **`cmd/proxy/main.go`**:
-  - Main binary entrypoint.
-  - **Logging**: Initializes structured JSON logging via Go `log/slog` writing to `os.Stdout`.
-  - **Signal Handling**: Sets up context cancellation responding to `os.Interrupt` and `syscall.SIGTERM`.
-  - **Component Instantiation**: Initializes `metrics.NewCollector()` and `proxy.NewRouter()` with a maximum concurrency limit of 5,000 requests and a 3-second queue timeout.
-  - **Docker Discovery**: Instantiates `discovery.NewDockerProvider()` with a 5-second polling interval. Spawns background goroutines to run the scanner (`dockerProvider.Start(ctx)`) and subscribe to target updates (`dockerProvider.Subscribe()`), continuously pushing route tables to the router (`router.UpdateBackends(routes)`).
-  - **Router & Middleware**: Constructs a Chi router (`chi.NewRouter()`) equipped with `middleware.Logger` and `middleware.Recoverer`.
-  - **UI Serving**: Mounts the embedded static assets (`fs.Sub(ui.Assets, "static")`) under `/static/*` and serves `/index.html` at the root route `/`.
-  - **SSE Telemetry Endpoint**: Implements `/api/events` using `http.Flusher`. Emits dual Server-Sent Events every second:
-    1. `event: metrics`: Out-of-Band (OOB) HTML snippet updating HTMX DOM nodes (`#metric-total-requests`, `#metric-active-concurrency`, `#metric-discovered-services`, `#metric-queued-requests`).
-    2. `event: telemetry`: Raw JSON string of the current `MetricSnapshot` for Chart.js graphing.
-  - **Reverse Proxy Catch-All**: Routes all unmatched paths through `r.NotFound(router.ServeHTTP)`.
-  - **Lifecycle Management**: Runs HTTP server on `:80` and manages graceful shutdown with a 10-second timeout deadline.
+  - **Runtime Initialization**: Sets up structured JSON logging (`log/slog`), initializes root signal handling for `SIGINT`/`SIGTERM` via `signal.NotifyContext`, and creates core `metrics.Collector` and `proxy.Router` instances.
+  - **Discovery Initialization**: Instantiates `discovery.DockerProvider` targeting `/var/run/docker.sock` and kicks off background polling.
+  - **Dynamic Route Subscription**: Subscribes to discovery events and synchronizes the proxy routing table dynamically via `router.UpdateBackends(routes)`.
+  - **Server Execution & Graceful Teardown**: Delegates router configuration to `server.SetupRouter`, runs HTTP server on `:80`, and manages graceful shutdown with a 10-second timeout deadline.
 
 ---
 
@@ -102,7 +98,8 @@ Container auto-discovery and backend synchronization.
   - **`ServiceTarget`**: Struct capturing discovered container metadata (`ID`, `Name`, `Host`, `Port`, `HostRule`, `TargetURL`, `Labels`, `Healthy`, `CreatedAt`).
   - **`Provider` Interface**: Generic abstraction exposing `Name() string`, `Start(ctx context.Context) error`, `Services() ([]ServiceTarget, error)`, and `Subscribe() <-chan []ServiceTarget`. Designed to support Swarm, Nomad, Kubernetes, or gossip backends.
   - **`DockerProvider`**: Implements `Provider` using `github.com/docker/docker/client`.
-  - **`scan(ctx)`**: Queries `/var/run/docker.sock` via `ContainerList`. Filters containers possessing the label `traffic-proxy.enable=true` and an active `traffic-proxy.rule`. Resolves container network IP addresses across attached networks and port definitions (`traffic-proxy.port` -> exposed port -> fallback `80`). Updates internal synchronized slice and publishes targets to the subscriber channel.
+  - **`Scan(ctx)`**: Queries `/var/run/docker.sock` via `ContainerList`. Filters containers possessing the label `traffic-proxy.enable=true` and an active `traffic-proxy.rule`. Resolves container network IP addresses across attached networks and port definitions (`traffic-proxy.port` -> exposed port -> fallback `80`). Updates internal synchronized slice and publishes targets to the subscriber channel.
+  - **`NewDockerProviderWithClient` & `SetServices`**: Test helpers enabling dependency injection of custom HTTP mock Docker clients.
 
 #### internal/metrics/
 Thread-safe metrics collection and telemetry storage.
@@ -112,9 +109,6 @@ Thread-safe metrics collection and telemetry storage.
   - **`TelemetryRingBuffer`**: Thread-safe ring buffer utilizing bitwise power-of-two capacity masking (`writeIdx & mask`) for high-throughput slot placement without pointer reshuffling.
   - **`Collector`**: Central metrics aggregator utilizing atomic primitives (`sync/atomic.Uint64` for total request counter, `sync/atomic.Int64` for active concurrency and queue gauges).
   - **`Snapshot(discoveredCount int)`**: Takes an atomic reading of all metrics, appends the snapshot into the ring buffer, and returns the snapshot instance.
-- **`internal/metrics/metrics_test.go`**:
-  - Unit tests verifying `TelemetryRingBuffer` initialization, push behavior, circular write wrap-around, empty buffer handling, and concurrent access.
-  - Unit tests verifying `Collector` atomic counter increments and snapshot generation.
 
 #### internal/proxy/
 Traffic management, concurrency throttling, and reverse proxy routing.
@@ -132,9 +126,16 @@ Traffic management, concurrency throttling, and reverse proxy routing.
     6. Normalizes `req.Host` (stripping port and converting to lowercase).
     7. Looks up reverse proxy backend. If not found, returns HTTP `502 Bad Gateway`.
     8. Forwards request via `httputil.ReverseProxy.ServeHTTP`.
-  - **`normalizeHost(host)`**: Helper utility extracting hostnames from host/port pairs and returning lowercase strings.
-- **`internal/proxy/proxy_test.go`**:
-  - Unit tests verifying reverse proxy routing, backend map updates, semaphore concurrency limits, queue timeout rejections, and host header normalization.
+  - **`NormalizeHost(host)`**: Exported helper utility extracting hostnames from host/port pairs and returning lowercase strings.
+
+#### internal/server/
+HTTP routing multiplexer and telemetry event streams.
+
+- **`internal/server/server.go`**:
+  - Configures Chi router with `middleware.Logger` and `middleware.Recoverer`.
+  - Mounts the embedded UI file server (`ui.Assets`) under `/static/*` and serves `/index.html` at root `/`.
+  - Implements the Server-Sent Events (SSE) telemetry stream on `/api/events`, emitting dual real-time events (`event: metrics` for HTMX OOB updates and `event: telemetry` for Chart.js).
+  - Configures catch-all `r.NotFound` handler routing unmatched traffic to `proxyRouter.ServeHTTP`.
 
 ---
 
@@ -152,6 +153,23 @@ Static dashboard assets embedded into the Go executable.
 
 ---
 
+### test/
+
+Dedicated automated test suites decoupled from production application packages.
+
+#### test/unit/
+- **`test/unit/discovery_test.go`**:
+  - Unit tests verifying `DockerProvider` initialization, container scanning, label parsing, port resolution fallbacks, service listing, and subscriber channels using mock HTTP test servers.
+- **`test/unit/metrics_test.go`**:
+  - Unit tests verifying `TelemetryRingBuffer` initialization, push behavior, circular write wrap-around, empty buffer handling, and concurrent access.
+  - Unit tests verifying `Collector` atomic counter increments and snapshot generation.
+- **`test/unit/proxy_test.go`**:
+  - Unit tests verifying reverse proxy routing, backend map updates, semaphore concurrency limits, queue timeout rejections, and host header normalization.
+- **`test/unit/server_test.go`**:
+  - Unit tests verifying gateway HTTP server routing, Chi middleware, static asset serving, and SSE event streaming endpoints.
+
+---
+
 ### .github/
 
 Continuous integration and automated GitHub workflows.
@@ -160,7 +178,7 @@ Continuous integration and automated GitHub workflows.
 - **`.github/workflows/ci.yml`**:
   - GitHub Actions CI/CD workflow (`Fuckass Pipeline`) containing four jobs:
     - **`lint`**: Executes `go vet` and `golangci-lint-action` using root [`.golangci.yml`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/.golangci.yml).
-    - **`test`**: Executes `go test -race` with atomic coverage profile generation, enforcing a strict minimum coverage threshold of 60%.
+    - **`test`**: Executes `go test -race -coverpkg=./internal/...` with atomic coverage profile generation across `test/unit/`, enforcing a strict minimum coverage threshold of 60%.
     - **`build`**: Compiles static binary (`CGO_ENABLED=0`) and verifies Docker Buildx image creation with GitHub Actions cache.
     - **`release`**: Triggered on push to `main` branch, authenticating with GitHub Container Registry (`ghcr.io`), tagging, and pushing the production scratch image.
 
@@ -199,30 +217,169 @@ Agent configuration, workspace behavioral rules, and specialized project skills.
 
 ---
 
-## Control & Data Flows
+## Traffic Monitoring & Control Flow
+
+This section details how HTTP requests pass through the gateway, how each stage is actively monitored and throttled, and how real-time operational data is collected and transmitted to the web interface.
+
+### 1. Request Lifecycle & Monitoring Diagram
 
 ```
 [ Incoming HTTP Request ]
-          │
-          ▼
-   cmd/proxy/main.go (Chi Router)
-          │
-          ├── /static/*, /  ──► ui/embed.go (Embedded Dashboard)
-          ├── /api/events   ──► internal/metrics/metrics.go (SSE Stream)
-          │
-          └── Catch-All (r.NotFound)
-                    │
-                    ▼
-          internal/proxy/proxy.go (Router.ServeHTTP)
-                    │
-                    ├─► Acquire Semaphore (Queue Timeout: 3s)
-                    │     └─► [Timeout] ──► 503 Service Unavailable
-                    │
-                    ├─► Lookup Host in Routes Map
-                    │     └─► [Not Found] ──► 502 Bad Gateway
-                    │
-                    ▼
-          httputil.ReverseProxy ──► Downstream Container Backend
+           │
+           ▼
+    Chi HTTP Router (cmd/proxy/main.go)
+           │
+  ┌────────┴─────────────────────────────┬───────────────────────────────┐
+  │ Route: /static/*, /                  │ Route: /api/events            │ Unmatched (r.NotFound)
+  ▼                                      ▼                               ▼
+ui/embed.go (Web Assets)       SSE Telemetry Stream             Router.ServeHTTP (internal/proxy/proxy.go)
+                               (Pushes live metrics to UI)               │
+                                                                         ├─► 1. TotalRequests.Add(1)
+                                                                         │
+                                                                         ├─► 2. QueuedRequests.Add(1)
+                                                                         │      Wait for Semaphore Slot (timeout: 3s)
+                                                                         │      QueuedRequests.Add(-1)
+                                                                         │        └─► [Timeout] ──► Return 503 Service Unavailable
+                                                                         │
+                                                                         ├─► 3. ActiveConcurrency.Add(1)
+                                                                         │      (defer ActiveConcurrency.Add(-1))
+                                                                         │
+                                                                         ├─► 4. Match req.Host in backends table
+                                                                         │        └─► [No match] ──► Return 502 Bad Gateway
+                                                                         │
+                                                                         ▼
+                                                                httputil.ReverseProxy ──► Downstream Container Backend
+```
+
+### 2. How Traffic is Monitored Step-by-Step
+
+#### Step A: Instant Atomic Request Counting
+Every incoming HTTP request arriving at `Router.ServeHTTP` immediately increments the atomic counter `TotalRequests`:
+```go
+r.metrics.TotalRequests.Add(1)
+```
+This is lock-free and thread-safe, ensuring zero latency overhead even under high traffic loads.
+
+#### Step B: Queue Throttling & Wait Tracking
+Before forwarding to backend containers:
+1. `QueuedRequests` is incremented by 1:
+   ```go
+   r.metrics.QueuedRequests.Add(1)
+   err := r.sem.Acquire(ctx, 1)
+   r.metrics.QueuedRequests.Add(-1)
+   ```
+2. The request tries to acquire a permit from `semaphore.Weighted` within a 3-second timeout window (`QueueTimeout`).
+3. `QueuedRequests` is decremented immediately upon either acquiring a permit or timing out.
+4. If the queue is saturated and 3 seconds elapse without acquiring a permit, TrafficProxy rejects the request with `503 Service Unavailable`, protecting downstream containers from cascading overload.
+
+#### Step C: Active Concurrency Tracking
+Once a semaphore permit is acquired, `ActiveConcurrency` is incremented. A Go `defer` statement ensures that when the request finishes—whether successful, client-aborted, or terminated by a downstream timeout—the permit is released and `ActiveConcurrency` is decremented:
+```go
+r.metrics.ActiveConcurrency.Add(1)
+defer r.metrics.ActiveConcurrency.Add(-1)
+```
+
+#### Step D: Docker Service Discovery Monitoring
+In the background, `DockerProvider` polls `/var/run/docker.sock` every 5 seconds. It discovers running containers matching the `traffic-proxy.enable=true` label, checks their health, and dynamically tracks the current count of healthy upstream services (`DiscoveredServices`).
+
+#### Step E: Lock-Free Ring Buffer Storage
+Every second, `collector.Snapshot(serviceCount)` reads the current atomic metrics and writes a timestamped snapshot (`MetricSnapshot`) into a circular ring buffer (`TelemetryRingBuffer`, size: 1024):
+```go
+snapshot := collector.Snapshot(serviceCount)
+```
+This maintains a recent history of performance metrics entirely in-memory without generating heap allocations or garbage collection pauses.
+
+#### Step F: Real-Time Telemetry Delivery (SSE + HTMX)
+The endpoint `/api/events` maintains a persistent Server-Sent Events (SSE) connection with client browsers:
+1. **DOM Updates (`event: metrics`)**: Pushes pre-rendered HTML snippets with `hx-swap-oob="outerHTML"`. HTMX on the browser automatically updates counter cards without reloading the page.
+2. **Chart Updates (`event: telemetry`)**: Pushes JSON payloads containing timestamps and concurrency metrics directly to Chart.js, rendering dynamic real-time traffic graphs.
+
+---
+
+## Go (Golang) Primer for Beginners
+
+A guide for developers new to Go working on this project.
+
+### 1. Key Go Concepts in This Codebase
+
+- **Packages & Exporting**:
+  - Code is organized into packages (e.g. `package proxy`, `package metrics`).
+  - Identifiers starting with a **capital letter** (e.g., `ServeHTTP`, `Config`, `Router`) are **exported** (public to other packages).
+  - Identifiers starting with a **lowercase letter** (e.g., `normalizeHost`, `writeIdx`) are **unexported** (private to their package).
+  - The `internal/` directory is enforced by the Go compiler: packages inside `internal/` cannot be imported by external modules, preserving private architectural boundaries.
+
+- **Structs and Methods (No Classes)**:
+  - Go does not have classes or OOP inheritance. Instead, data fields are grouped into `struct` types:
+    ```go
+    type Router struct {
+        cfg      Config
+        sem      *semaphore.Weighted
+        backends map[string]*httputil.ReverseProxy
+    }
+    ```
+  - Functions attached to structs are called **methods**, declared with a receiver:
+    ```go
+    // (r *Router) is a pointer receiver: it operates directly on the Router instance
+    func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) { ... }
+    ```
+
+- **Pointers (`*` and `&`)**:
+  - `*Router` indicates a pointer to a `Router` instance (passed by reference, avoiding memory copies and enabling mutation).
+  - `&Router{...}` allocates a `Router` struct and returns its memory address (pointer).
+
+- **Concurrency: Goroutines, Channels, and `select`**:
+  - `go func() { ... }()` spawns an ultra-lightweight concurrent thread called a **goroutine** (costing only a few kilobytes of stack memory).
+  - **Channels (`chan`)** allow goroutines to pass typed data safely without manual locking:
+    ```go
+    sub := dockerProvider.Subscribe() // returns a receive-only channel: <-chan []ServiceTarget
+    targets := <-sub                  // blocks until new targets are received
+    ```
+  - **`select`** waits on multiple channels concurrently:
+    ```go
+    select {
+    case <-ctx.Done(): // triggers when shutdown is initiated
+        return
+    case targets := <-sub: // triggers when Docker discovers new containers
+        router.UpdateBackends(routes)
+    }
+    ```
+
+- **Context (`context.Context`)**:
+  - Used throughout Go to manage timeouts, deadlines, and graceful shutdown signals across goroutines.
+  - `ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)` creates a context that cancels automatically after 3 seconds.
+
+- **Lock-Free Atomic Operations (`sync/atomic`)**:
+  - Instead of mutex locks, TrafficProxy tracks high-throughput counters using atomic types (`atomic.Uint64`, `atomic.Int64`).
+  - Methods like `c.TotalRequests.Add(1)` and `c.TotalRequests.Load()` compile into hardware-level atomic CPU instructions with zero lock contention.
+
+- **Explicit Error Handling**:
+  - Go does not have exceptions (`try/catch`). Functions return errors as normal return values:
+    ```go
+    err := r.sem.Acquire(ctx, 1)
+    if err != nil {
+        http.Error(w, "Service Overloaded", http.StatusServiceUnavailable)
+        return
+    }
+    ```
+
+- **Embedded Files (`//go:embed`)**:
+  - In `ui/embed.go`, the directive `//go:embed static/*` bundles the HTML, CSS, and JS dashboard files directly into the compiled binary at build time.
+
+### 2. Essential Go CLI Commands
+
+```bash
+# Download and clean up dependencies in go.mod and go.sum
+go mod download
+go mod tidy
+
+# Run all unit tests with race detection
+go test -race ./...
+
+# Run static analysis
+go vet ./...
+
+# Compile binary locally
+go build -o traffic-proxy ./cmd/proxy
 ```
 
 ---
@@ -231,7 +388,7 @@ Agent configuration, workspace behavioral rules, and specialized project skills.
 
 ```bash
 # Run unit tests with race detection and coverage check
-go test -race -cover ./...
+go test -race -coverpkg=./internal/... -cover ./...
 
 # Run static analysis
 go vet ./...

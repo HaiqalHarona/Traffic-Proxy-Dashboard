@@ -50,8 +50,12 @@ Traffic-Proxy-Dashboard/
 │   │   └── discovery.go     # Service discovery interface & Docker label provider
 │   ├── metrics/
 │   │   └── metrics.go       # Atomic counters & lock-free ring buffer for real-time telemetry
-│   └── proxy/
-│       └── proxy.go         # Traffic queue management, semaphores & reverse proxying
+│   ├── proxy/
+│   │   └── proxy.go         # Traffic queue management, semaphores & reverse proxying
+│   └── server/
+│       └── server.go        # Chi HTTP router, telemetry SSE handler, static UI serving
+├── test/
+│   └── unit/                # Dedicated unit test suite decoupled from production code
 ├── ui/
 │   ├── embed.go             # //go:embed static filesystem bundle
 │   └── static/

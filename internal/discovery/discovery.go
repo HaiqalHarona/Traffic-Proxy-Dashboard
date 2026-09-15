@@ -48,12 +48,24 @@ func NewDockerProvider(interval time.Duration) (*DockerProvider, error) {
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
+	return NewDockerProviderWithClient(cli, interval), nil
+}
+
+// NewDockerProviderWithClient creates a DockerProvider with an explicit docker client.
+func NewDockerProviderWithClient(cli *client.Client, interval time.Duration) *DockerProvider {
 	return &DockerProvider{
 		cli:          cli,
 		services:     make([]ServiceTarget, 0),
 		eventsChan:   make(chan []ServiceTarget, 100),
 		pollInterval: interval,
-	}, nil
+	}
+}
+
+// SetServices updates the in-memory targets slice.
+func (d *DockerProvider) SetServices(services []ServiceTarget) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.services = services
 }
 
 func (d *DockerProvider) Name() string {
@@ -65,19 +77,20 @@ func (d *DockerProvider) Start(ctx context.Context) error {
 	defer ticker.Stop()
 
 	// Initial scan
-	_ = d.scan(ctx)
+	_ = d.Scan(ctx)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			_ = d.scan(ctx)
+			_ = d.Scan(ctx)
 		}
 	}
 }
 
-func (d *DockerProvider) scan(ctx context.Context) error {
+// Scan performs a single inspection of active Docker containers.
+func (d *DockerProvider) Scan(ctx context.Context) error {
 	containers, err := d.cli.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
 		return err

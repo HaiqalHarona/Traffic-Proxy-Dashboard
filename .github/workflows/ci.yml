@@ -54,7 +54,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          go test -race -coverprofile=coverage.out -covermode=atomic ./...
+          go test -race -coverpkg=./internal/... -coverprofile=coverage.out -covermode=atomic ./...
 
       - name: Enforce coverage threshold (>=60%)
         run: |
