@@ -80,16 +80,28 @@ Application entrypoints and runnable binary mains.
 
 #### `cmd/proxy/`
 - **`cmd/proxy/main.go`**:
-  - **Runtime Initialization**: Sets up structured JSON logging (`log/slog`), initializes root signal handling for `SIGINT`/`SIGTERM` via `signal.NotifyContext`, and creates core `metrics.Collector` and `proxy.Router` instances.
-  - **Discovery Initialization**: Instantiates `discovery.DockerProvider` targeting `/var/run/docker.sock` and kicks off background polling.
+  - **Runtime Initialization**: Sets up structured JSON logging (`log/slog`) with configured log level, loads runtime configuration via `config.Load()`, initializes root signal handling for `SIGINT`/`SIGTERM` via `signal.NotifyContext`, and creates core `metrics.Collector` and `proxy.Router` instances.
+  - **Discovery Initialization**: Instantiates `discovery.DockerProvider` targeting `/var/run/docker.sock` with polling interval from configuration and kicks off background polling.
   - **Dynamic Route Subscription**: Subscribes to discovery events and synchronizes the proxy routing table dynamically via `router.UpdateBackends(routes)`.
-  - **Server Execution & Graceful Teardown**: Delegates router configuration to `server.SetupRouter`, runs HTTP server on `:80`, and manages graceful shutdown with a 10-second timeout deadline.
+  - **Server Execution & Graceful Teardown**: Delegates router configuration to `server.SetupRouter`, runs HTTP server on configured port (`cfg.Port`), and manages graceful shutdown with a 10-second timeout deadline.
+
+#### `cmd/trafficgen/`
+- **`cmd/trafficgen/main.go`**:
+  - Synthetic traffic generator simulating diverse routing loads (valid backends, slow delayed backends, unmapped 502 targets, and SSE stream subscribers).
+  - Reports request throughput (req/s), HTTP response code distributions, and connection errors.
 
 ---
 
 ### internal/
 
 Internal libraries and packages private to TrafficProxy.
+
+#### internal/config/
+Environment variable configuration loader.
+
+- **`internal/config/config.go`**:
+  - **`Config`**: Defines gateway runtime parameters (`Port`, `MaxConcurrentRequests`, `QueueTimeout`, `DockerPollInterval`, `LogLevel`).
+  - **`Load()`**: Reads environment overrides (`PROXY_PORT`, `PROXY_MAX_CONCURRENT`, `PROXY_QUEUE_TIMEOUT`, `DOCKER_POLL_INTERVAL`, `LOG_LEVEL`) with fallback defaults.
 
 #### internal/discovery/
 Container auto-discovery and backend synchronization.
@@ -158,6 +170,8 @@ Static dashboard assets embedded into the Go executable.
 Dedicated automated test suites decoupled from production application packages.
 
 #### test/unit/
+- **`test/unit/config_test.go`**:
+  - Unit tests verifying environment variable parsing, default fallbacks, and invalid duration handling in `internal/config`.
 - **`test/unit/discovery_test.go`**:
   - Unit tests verifying `DockerProvider` initialization, container scanning, label parsing, port resolution fallbacks, service listing, and subscriber channels using mock HTTP test servers.
 - **`test/unit/metrics_test.go`**:
@@ -398,4 +412,26 @@ CGO_ENABLED=0 go build -ldflags="-s -w" -o traffic-proxy ./cmd/proxy
 
 # Build Docker image
 docker build -t traffic-proxy:local .
+```
+
+### Local Development & Synthetic Traffic Replication
+
+To spin up the local development harness with mock fast (`app.local`) and delayed (`slow.local`) backends and generate synthetic traffic:
+
+```bash
+# 1. Start local proxy and mock services
+docker compose -f docker-compose.local.yml up -d --build
+
+# 2. Seed diverse traffic patterns (30-second run with 20 workers)
+./scripts/seed-traffic.sh start 20 30s
+
+# 3. Simulate instant concurrency burst to exercise semaphore queueing & 503 limits
+./scripts/seed-traffic.sh burst 40
+
+# 4. Stream and observe live SSE telemetry events in the console
+./scripts/seed-traffic.sh sse
+
+# 5. Stop generator and teardown local containers
+./scripts/seed-traffic.sh stop
+docker compose -f docker-compose.local.yml down -v
 ```
