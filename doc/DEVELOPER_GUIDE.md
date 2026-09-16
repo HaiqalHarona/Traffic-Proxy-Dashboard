@@ -24,8 +24,14 @@ Comprehensive architectural, structural, and technical reference for all directo
 - [End-to-End Operational Workflow](#end-to-end-operational-workflow)
   - [1. Comprehensive System Architecture Diagram](#1-comprehensive-system-architecture-diagram)
   - [2. Go File Correlation by Runtime Phase](#2-go-file-correlation-by-runtime-phase)
+  - [3. Go File Correlation Summary Matrix](#3-go-file-correlation-summary-matrix)
 - [Traffic Monitoring & Control Flow](#traffic-monitoring--control-flow)
 - [Go (Golang) Primer for Beginners](#go-golang-primer-for-beginners)
+  - [1. Go Syntax Demystified in Plain English](#1-go-syntax-demystified-in-plain-english)
+  - [2. What Each File's Core Function Does](#2-what-each-files-core-function-does)
+  - [3. Why We Need Semaphores, Queues, and Concurrency Limits](#3-why-we-need-semaphores-queues-and-concurrency-limits)
+  - [4. Why Discovery Needs Fallbacks](#4-why-discovery-needs-fallbacks)
+  - [5. Essential Go CLI Commands](#5-essential-go-cli-commands)
 - [Building & Testing Locally](#building--testing-locally)
 
 ---
@@ -444,88 +450,229 @@ The endpoint `/api/events` maintains a persistent Server-Sent Events (SSE) conne
 
 ## Go (Golang) Primer for Beginners
 
-A guide for developers new to Go working on this project.
+A comprehensive, plain-English reference for developers who are new to Go or coming from other languages like JavaScript, Python, Java, or C#.
 
-### 1. Key Go Concepts in This Codebase
+---
 
-- **Packages & Exporting**:
-  - Code is organized into packages (e.g. `package proxy`, `package metrics`).
-  - Identifiers starting with a **capital letter** (e.g., `ServeHTTP`, `Config`, `Router`) are **exported** (public to other packages).
-  - Identifiers starting with a **lowercase letter** (e.g., `normalizeHost`, `writeIdx`) are **unexported** (private to their package).
-  - The `internal/` directory is enforced by the Go compiler: packages inside `internal/` cannot be imported by external modules, preserving private architectural boundaries.
+### 1. Go Syntax Demystified in Plain English
 
-- **Structs and Methods (No Classes)**:
-  - Go does not have classes or OOP inheritance. Instead, data fields are grouped into `struct` types:
-    ```go
-    type Router struct {
-        cfg      Config
-        sem      *semaphore.Weighted
-        backends map[string]*httputil.ReverseProxy
-    }
-    ```
-  - Functions attached to structs are called **methods**, declared with a receiver:
-    ```go
-    // (r *Router) is a pointer receiver: it operates directly on the Router instance
-    func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) { ... }
-    ```
+If you are reading Go code for the first time, you will notice a few patterns that look strange compared to traditional object-oriented languages. Here is what they actually mean:
 
-- **Pointers (`*` and `&`)**:
-  - `*Router` indicates a pointer to a `Router` instance (passed by reference, avoiding memory copies and enabling mutation).
-  - `&Router{...}` allocates a `Router` struct and returns its memory address (pointer).
+#### A. Structs and Methods (No Classes or `this`)
+Go does **not** have classes, inheritance, or a `this`/`self` keyword. Instead:
+- Data fields are grouped into a **`struct`** (like a blueprint or TypeScript interface).
+- Functions attached to that struct are called **methods**, and they declare a **receiver** in parentheses before the function name:
 
-- **Concurrency: Goroutines, Channels, and `select`**:
-  - `go func() { ... }()` spawns an ultra-lightweight concurrent thread called a **goroutine** (costing only a few kilobytes of stack memory).
-  - **Channels (`chan`)** allow goroutines to pass typed data safely without manual locking:
-    ```go
-    sub := dockerProvider.Subscribe() // returns a receive-only channel: <-chan []ServiceTarget
-    targets := <-sub                  // blocks until new targets are received
-    ```
-  - **`select`** waits on multiple channels concurrently:
-    ```go
-    select {
-    case <-ctx.Done(): // triggers when shutdown is initiated
-        return
-    case targets := <-sub: // triggers when Docker discovers new containers
-        router.UpdateBackends(routes)
-    }
-    ```
+```go
+// 1. Defining the struct
+type Router struct {
+    cfg      Config
+    sem      *semaphore.Weighted
+    backends map[string]*httputil.ReverseProxy
+}
 
-- **Context (`context.Context`)**:
-  - Used throughout Go to manage timeouts, deadlines, and graceful shutdown signals across goroutines.
-  - `ctx, cancel := context.WithTimeout(req.Context(), 3*time.Second)` creates a context that cancels automatically after 3 seconds.
+// 2. Attaching a method to Router
+// (r *Router) is the receiver — it means "inside this function, 'r' refers to the Router calling this method"
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+    // Access struct fields using r.fieldName
+    r.metrics.TotalRequests.Add(1)
+}
+```
 
-- **Lock-Free Atomic Operations (`sync/atomic`)**:
-  - Instead of mutex locks, TrafficProxy tracks high-throughput counters using atomic types (`atomic.Uint64`, `atomic.Int64`).
-  - Methods like `c.TotalRequests.Add(1)` and `c.TotalRequests.Load()` compile into hardware-level atomic CPU instructions with zero lock contention.
+#### B. Pointers (`*` and `&`) vs. Values
+In Go, variables are passed by value (copied) by default. Pointers allow you to share and modify the original memory address:
+- **`&MyStruct{...}`**: The `&` operator takes the **memory address** of a struct (creates a pointer).
+- **`*Router`**: The `*` in a type definition means "a pointer pointing to a `Router` in memory, not a copy of it".
+- **Why we use pointer receivers `(r *Router)`**:
+  1. It avoids copying large structs in memory every time a method is called.
+  2. It allows methods to modify the fields of the struct directly (e.g. updating the backend map).
 
-- **Explicit Error Handling**:
-  - Go does not have exceptions (`try/catch`). Functions return errors as normal return values:
-    ```go
-    err := r.sem.Acquire(ctx, 1)
-    if err != nil {
-        http.Error(w, "Service Overloaded", http.StatusServiceUnavailable)
-        return
-    }
-    ```
+#### C. Goroutines: Super-Cheap Threads (`go func()`)
+In traditional languages (Python, Java, Node.js), spawning 1,000 OS threads will exhaust system memory. 
+- Go has **goroutines**: green threads managed by the Go runtime that start at only **2 KB of memory**.
+- Adding the `go` keyword before any function call runs it in the background immediately without blocking:
+```go
+go func() {
+    dockerProvider.Start(ctx) // Runs continuously in the background!
+}()
+```
+You can easily spawn 50,000+ goroutines on a single machine without crashing.
 
-- **Embedded Files (`//go:embed`)**:
-  - In `ui/embed.go`, the directive `//go:embed static/*` bundles the HTML, CSS, and JS dashboard files directly into the compiled binary at build time.
+#### D. Channels (`chan`): Safe Conveyor Belts Between Goroutines
+How do background goroutines talk to each other without corrupting memory? Go uses **channels**—thread-safe conveyor belts:
+```go
+// 1. Send data onto a channel:
+d.eventsChan <- targets // "Puts new container targets onto the belt"
 
-### 2. Essential Go CLI Commands
+// 2. Receive data from a channel:
+targets := <-sub        // "Waits and takes targets off the belt"
+```
+
+#### E. The `select` Statement: Event Listener for Channels
+Think of `select` as `switch`, but for channels. It blocks until **one** of its cases is ready to send or receive data:
+```go
+select {
+case <-ctx.Done():
+    return // The app is shutting down, exit immediately!
+case targets := <-sub:
+    router.UpdateBackends(routes) // New containers found! Update proxy routes.
+}
+```
+
+#### F. `defer`: Guaranteed Cleanup Before Exiting
+The `defer` keyword schedules a function call to run **right before the surrounding function returns**, no matter how or where the function exits (even on errors):
+```go
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+    r.metrics.ActiveConcurrency.Add(1)
+    defer r.metrics.ActiveConcurrency.Add(-1) // Guaranteed to run when ServeHTTP finishes!
+
+    // ... handle request ...
+}
+```
+This guarantees you never forget to release a semaphore slot, unlock a mutex, or close an open connection.
+
+#### G. Lock-Free Atomic Operations (`sync/atomic`)
+Normally, if two threads change a counter at the same time, they cause race conditions and data corruption. Mutex locks solve this, but they force threads to wait in line.
+- `sync/atomic` performs mathematical operations directly at the **CPU instruction level** (e.g. `LOCK XADD` on x86-64).
+- `c.TotalRequests.Add(1)` and `c.TotalRequests.Load()` are 100% thread-safe and lock-free, executing in single-digit nanoseconds under heavy traffic.
+
+#### H. Explicit Errors (No Hidden Exceptions)
+Go does not have `try / catch / throw`. Functions return an error value alongside their result:
+```go
+provider, err := discovery.NewDockerProvider(interval)
+if err != nil {
+    // Handle the failure immediately!
+    slog.Warn("Failed to connect to Docker", "error", err)
+}
+```
+This forces developers to handle edge cases explicitly instead of letting unexpected exceptions crash the process.
+
+#### I. Embedded Files (`//go:embed`)
+The directive `//go:embed static/*` instructs the Go compiler to read the frontend files from your disk during `go build` and bake them directly into the binary executable. When running TrafficProxy, you do **not** need a `public/` or `dist/` folder on the server—everything is self-contained in a single executable file.
+
+#### J. Capital vs. Lowercase Visibility
+Go has no `public` or `private` keywords:
+- **Capitalized name** (e.g., `ServeHTTP`, `Config`, `Router`): **Public / Exported** (accessible from other packages).
+- **Lowercase name** (e.g., `normalizeHost`, `writeIdx`, `scan`): **Private / Unexported** (only accessible inside its own package).
+
+---
+
+### 2. What Each File's Core Function Does
+
+Here is what every file in the project does in simple layman terms:
+
+| File | Layman Metaphor | Core Responsibility |
+| :--- | :--- | :--- |
+| **`cmd/proxy/main.go`** | **The Grand Conductor** | Boots up the entire application. Loads settings, starts the background Docker scanner, connects discovery updates to the proxy router, starts the web server on `:80`, and gracefully shuts everything down when you press Ctrl+C. |
+| **`internal/config/config.go`** | **The Settings Desk** | Reads environment variables (port, queue timeouts, concurrency limits) and validates them. If an environment variable is missing or invalid, it provides safe, battle-tested defaults. |
+| **`internal/discovery/discovery.go`** | **The Container Scout** | Constantly monitors Docker in the background. Finds running containers labeled with `traffic-proxy.enable=true`, determines their IP and port, and alerts the proxy whenever containers appear, restart, or shut down. |
+| **`internal/proxy/proxy.go`** | **The Traffic Bouncer & Router** | The reverse proxy engine. Accepts incoming web traffic, checks if the server is too busy using a semaphore, lines requests up in a queue if needed, finds the correct downstream container, and forwards the HTTP request. |
+| **`internal/metrics/metrics.go`** | **The Scoreboard & Flight Recorder** | Keeps score of system performance. Tracks total requests, active concurrent connections, and queued requests with atomic counters, saving snapshots into a 1024-slot circular ring buffer in memory. |
+| **`internal/server/server.go`** | **The Front Door & Broadcast Tower** | Sets up the web server routes. Serves the embedded dashboard files at `/`, pushes live real-time metrics over Server-Sent Events (SSE) at `/api/events`, and hands off all other requests to the proxy bouncer. |
+| **`ui/embed.go`** | **The Packed Backpack** | Bundles the dashboard HTML, Tailwind CSS, HTMX, and Chart.js files directly into the compiled binary so the entire gateway can be deployed as a single standalone executable. |
+| **`cmd/trafficgen/main.go`** | **The Stress Testing Drill** | A synthetic load generator CLI that fires concurrent streams of simulated HTTP requests against the proxy to test how it handles heavy loads, queueing, and traffic spikes. |
+| **`test/unit/*.go`** | **The Safety Inspectors** | Isolated automated test suites that verify configuration parsing, container discovery, atomic metrics, and proxy routing to make sure new code changes don't break the system. |
+
+---
+
+### 3. Why We Need Semaphores, Queues, and Concurrency Limits
+
+A common question from new Go developers is: *"Go can easily handle 50,000 goroutines at once—why do we need semaphores and queues to throttle requests?"*
+
+#### The "Nightclub Bouncer" Analogy
+Imagine TrafficProxy is a **bouncer** outside a popular nightclub, and your downstream containers (a Python Flask app, Node.js API, or database) are the **bartenders inside**:
+
+1. **What happens WITHOUT a Semaphore?**
+   - 10,000 visitors arrive at the nightclub at the exact same instant.
+   - Go is so fast that it lets all 10,000 people rush through the doors into the bar simultaneously.
+   - The bartenders (your downstream container) only have 4 staff members and 2 taps.
+   - The bar gets overwhelmed, runs out of memory (OOM), crashes, and stops serving everyone. The entire backend collapses in a **cascading failure**.
+
+2. **What the Weighted Semaphore Does (`semaphore.Weighted`)**:
+   - The bouncer sets an occupancy limit (e.g. `MaxConcurrentRequests = 5000` in production, or `25` in local testing).
+   - Only 5,000 requests are allowed to actively talk to the backends at any single moment.
+   - Each request takes a "wristband" (permit) before entering and returns it when leaving.
+
+3. **What the Request Queue Does (`QueuedRequests`)**:
+   - When all 5,000 permits are in use, incoming request #5,001 does **not** get immediately rejected.
+   - Instead, it waits patiently in line in memory (`QueuedRequests.Add(1)`).
+   - As soon as request #200 finishes and releases its wristband, request #5,001 enters the bar.
+
+4. **Why We MUST Have a Queue Timeout (`QueueTimeout: 3s` returning `503`)**:
+   - What if the bartenders freeze up completely? Without a timeout, thousands of requests would wait in line forever, holding open connections and consuming memory until the proxy itself runs out of sockets.
+   - If a request waits in line for more than **3 seconds**, TrafficProxy immediately cancels its wait and returns **`503 Service Unavailable`**.
+   - **Why a fast 503 is a good thing**:
+     - It immediately tells the client or load balancer: *"We are currently at capacity—retry in a few seconds."*
+     - It instantly closes the HTTP connection and frees memory on the proxy.
+     - It stops the traffic surge from reaching the already-struggling backend, giving your containers breathing room to recover and clear their backlogs.
+
+5. **Why `sync/atomic` Instead of Mutex Locks for Metrics?**
+   - A `sync.Mutex` is like a **single-occupancy bathroom with a lock on the door**: only one person can enter, lock the door, update a variable, and unlock the door. Under 10,000 requests/sec, goroutines spend most of their time waiting in line to grab the lock.
+   - `sync/atomic` counters are like a **digital turnstile with an electronic clicker**: thousands of people can walk through simultaneously, and the hardware CPU directly increments the counter in nanoseconds with zero waiting.
+
+---
+
+### 4. Why Discovery Needs Fallbacks
+
+When discovering containers dynamically via `/var/run/docker.sock`, real-world Docker environments are messy. Containers use different networking modes, omit configuration labels, or crash unexpectedly. TrafficProxy implements multi-layered fallbacks to guarantee resilience:
+
+```
+                  [ Discovered Docker Container ]
+                                 │
+     ┌───────────────────────────┼───────────────────────────┐
+     ▼                           ▼                           ▼
+[ IP Resolution ]       [ Port Resolution ]        [ Health Verification ]
+  1. Bridge Network IP?   1. traffic-proxy.port?     1. State == "running"?
+     └─► [No]                └─► [No]                   └─► [No: Ignore]
+  2. Custom Mesh IP?      2. First Exposed Port?     2. TargetURL != nil?
+     └─► [No]                └─► [No]                   └─► [No: Ignore]
+  3. Fallback to Name     3. Fallback to Port 80     3. Healthy: Register Route!
+```
+
+#### A. Container IP Address Fallback
+- **The Problem**: A container can be attached to multiple networks (e.g. Docker's default `bridge`, a user-defined compose network like `local-mesh`, and a database network). Some network adapters may not have an IP assigned yet, or may use internal overlay addressing.
+- **The Fallback**: The discovery engine loops through `c.NetworkSettings.Networks`. As soon as it finds a valid, non-empty `net.IPAddress`, it uses it. If all network IP entries are empty (common in certain custom bridge configurations), it falls back to using the container's internal DNS name (`c.Names[0]`).
+
+#### B. Target Port Fallback
+- **The Problem**: Developers configure containers in different ways. Some specify a label, some define `EXPOSE` in their Dockerfile, and some do neither.
+- **The Fallback Chain**:
+  1. **Primary Check**: Looks for the explicit label `traffic-proxy.port` (e.g. `3000` or `8080`).
+  2. **Secondary Check**: If the label is omitted, it inspects Docker's exposed port list (`c.Ports[0].PrivatePort`).
+  3. **Final Fallback**: If no ports are declared anywhere, it defaults to standard HTTP port **`80`**.
+  Without this three-tiered fallback, missing a single label would cause TrafficProxy to drop the container entirely.
+
+#### C. Container State & Health Fallback
+- **The Problem**: Containers frequently restart, crash, or enter an `exited` state during updates.
+- **The Fallback**: Discovery explicitly checks `Healthy: c.State == "running"`. If a container is stopped, restarting, or unhealthy, the proxy ignores it and does **not** register it in the routing table. This prevents users from getting routed into a dead container.
+
+#### D. Daemon Connection Fallback
+- **The Problem**: What if Docker isn't installed locally (like on a developer workstation during quick testing), or the Docker daemon restarts?
+- **The Fallback**: In `cmd/proxy/main.go`, if `discovery.NewDockerProvider` fails to connect to `/var/run/docker.sock`, it logs a warning:
+  ```
+  Docker provider initialization failed (continuing without docker sock)
+  ```
+  Instead of crashing the entire proxy binary, TrafficProxy continues running cleanly, serving the embedded UI dashboard and static routes.
+
+---
+
+### 5. Essential Go CLI Commands
 
 ```bash
 # Download and clean up dependencies in go.mod and go.sum
 go mod download
 go mod tidy
 
-# Run all unit tests with race detection
-go test -race ./...
+# Run all unit tests with race detection and coverage check
+go test -race -coverpkg=./internal/... -cover ./...
 
-# Run static analysis
+# Run static analysis (catches subtle bugs and unformatted code)
 go vet ./...
 
-# Compile binary locally
-go build -o traffic-proxy ./cmd/proxy
+# Compile binary locally for current OS
+go build -ldflags="-s -w" -o traffic-proxy ./cmd/proxy
+
+# Cross-compile a static Linux binary (matches production Docker scratch target)
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -extldflags '-static'" -o traffic-proxy ./cmd/proxy
 ```
 
 ---
