@@ -18,6 +18,29 @@ docker compose up -d --force-recreate
 
 ---
 
+## Updating Local Builds
+
+When running locally without Docker or iterating on local Go code:
+
+1. Pull latest git changes:
+```bash
+git pull origin develop
+```
+
+2. Recompile and run via start scripts:
+
+**Linux / macOS (Bash):**
+```bash
+./start.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\start.ps1
+```
+
+---
+
 ## Updating Prebuilt Images from GHCR
 
 When running images published by the CI/CD pipeline:
