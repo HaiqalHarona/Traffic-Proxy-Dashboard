@@ -38,7 +38,7 @@ Comprehensive architectural, structural, and technical reference for all directo
 
 ## Project Overview
 
-TrafficProxy is a container-aware HTTP reverse proxy and edge gateway. It automatically discovers downstream services by polling the Docker Engine API, actively controls incoming request concurrency via weighted semaphores, and streams live metrics to an embedded HTMX web dashboard using Server-Sent Events (SSE).
+TrafficProxy is a container-aware HTTP reverse proxy and edge gateway. It automatically discovers downstream services by polling the Docker Engine API, actively controls incoming request concurrency via weighted semaphores, and presents operational telemetry via an embedded HTMX web dashboard.
 
 ---
 
@@ -55,6 +55,8 @@ TrafficProxy is a container-aware HTTP reverse proxy and edge gateway. It automa
 | `.golangci.yml` | Linter configuration for `golangci-lint` detailing active linters, options, and run timeouts. |
 | `.dockerignore` | Build context exclude file ensuring minimal layer footprints during image compilation. |
 | `.gitignore` | Git version control exclude specifications for binaries, test coverages, and IDE configurations. |
+| `start.ps1` | PowerShell start script for Windows local build, configuration, and execution. |
+| `start.sh` | Bash start script for Linux/macOS local build, configuration, and execution. |
 | `skills-lock.json` | Lockfile recording external tool and agent skill configurations. |
 | `README.md` | Primary project documentation, providing quickstart, architecture summary, and configuration guidelines. |
 
@@ -69,6 +71,16 @@ TrafficProxy is a container-aware HTTP reverse proxy and edge gateway. It automa
   - Mounts the host Docker socket at `/var/run/docker.sock:ro`.
   - Sets `read_only: true` and `no-new-privileges:true` for kernel-level security isolation.
   - Configures an automated HTTP healthcheck (`wget -q --spider http://localhost:80/`) running every 15 seconds.
+
+- **`start.ps1`**:
+  - Automates local compilation (`go build -o traffic-proxy.exe ./cmd/proxy`) on Windows PowerShell.
+  - Supports configurable parameters (`-Port`, `-MaxConcurrent`, `-QueueTimeout`, `-PollInterval`, `-LogLevel`).
+  - Provides `-WithMockBackends` to launch Docker mock services (`app.local`, `slow.local`) and `-StopBackends` for container cleanup.
+
+- **`start.sh`**:
+  - Automates local compilation (`go build -o traffic-proxy ./cmd/proxy`) on Linux and macOS with POSIX/Bash compatibility.
+  - Supports CLI flags (`-p/--port`, `-c/--concurrency`, `-t/--timeout`, `-i/--interval`, `-l/--log-level`).
+  - Provides `-m/--with-mock-backends` to launch Docker mock services with graceful trap cleanup, and `--stop-backends` for manual teardown.
 
 - **`go.mod`**:
   - Declares core dependencies including `github.com/go-chi/chi/v5` (HTTP router and middleware), `github.com/docker/docker` (Docker Engine client API), and `golang.org/x/sync/semaphore` (weighted semaphore implementation).
@@ -151,12 +163,11 @@ Traffic management, concurrency throttling, and reverse proxy routing.
   - **`NormalizeHost(host)`**: Exported helper utility extracting hostnames from host/port pairs and returning lowercase strings.
 
 #### internal/server/
-HTTP routing multiplexer and telemetry event streams.
+HTTP routing multiplexer and reverse proxy dispatch.
 
 - **`internal/server/server.go`**:
   - Configures Chi router with `middleware.Logger` and `middleware.Recoverer`.
   - Mounts the embedded UI file server (`ui.Assets`) under `/static/*` and serves `/index.html` at root `/`.
-  - Implements the Server-Sent Events (SSE) telemetry stream on `/api/events`, emitting dual real-time events (`event: metrics` for HTMX OOB updates and `event: telemetry` for Chart.js).
   - Configures catch-all `r.NotFound` handler routing unmatched traffic to `proxyRouter.ServeHTTP`.
 
 ---
@@ -168,10 +179,9 @@ Static dashboard assets embedded into the Go executable.
 - **`ui/embed.go`**:
   - Exposes `Assets embed.FS` using the directive `//go:embed static/*`, compiling frontend templates directly into the binary.
 - **`ui/static/index.html`**:
-  - Single-page dashboard built with Tailwind CSS, HTMX, and Chart.js.
-  - Connects to `/api/events` using the HTMX SSE extension (`hx-ext="sse"`, `sse-connect="/api/events"`).
-  - Listens for `metrics` events to update metric counter cards without page reloads.
-  - Listens for `telemetry` events in JavaScript to drive live line charts showing active concurrency and request trends over time.
+  - Single-page administrative dashboard built with Tailwind CSS, HTMX, and Chart.js.
+  - Displays baseline system metrics, route tables, concurrency throttling parameters, and Chart.js telemetry.
+  - Interactive/dynamic live SSE streaming is scheduled for implementation in Milestone 5.
 
 ---
 
@@ -190,7 +200,7 @@ Dedicated automated test suites decoupled from production application packages.
 - **`test/unit/proxy_test.go`**:
   - Unit tests verifying reverse proxy routing, backend map updates, semaphore concurrency limits, queue timeout rejections, and host header normalization.
 - **`test/unit/server_test.go`**:
-  - Unit tests verifying gateway HTTP server routing, Chi middleware, static asset serving, and SSE event streaming endpoints.
+  - Unit tests verifying gateway HTTP server routing, Chi middleware, static asset serving, and unmapped route proxy fallback.
 
 ---
 
@@ -265,18 +275,18 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
           internal/proxy/proxy.go ◄───────────────────────────────────────────────┤
           (Router.UpdateBackends)                                                 │
                       ▲                                                           │
-                      │ Forwards Unmatched HTTP Requests                          │ Real-time Telemetry
+                      │ Forwards Unmatched HTTP Requests                          │
                       │ (r.NotFound)                                              ▼
           internal/server/server.go ◄─────────────────────────────────────────────┘
           (SetupRouter / Chi Router)
-           │                    │
-           ├─► Route: /static/* │ Route: /api/events (SSE)
-           │   Route: /         │
-           ▼                    ▼
-       ui/embed.go        Browser Client (HTMX / Chart.js)
+           │                    
+           ├─► Route: /static/* 
+           │   Route: /         
+           ▼                    
+       ui/embed.go        Browser Client (Admin Dashboard)
        (Embedded Assets)
 
-  [ Synthetic Load Simulation ] ──► cmd/trafficgen/main.go ──► Tests all HTTP & SSE routes
+  [ Synthetic Load Simulation ] ──► cmd/trafficgen/main.go ──► Tests proxy routing under load
   [ Automated Verification ]    ──► test/unit/*.go          ──► Validates isolated unit behaviors
 ```
 
@@ -293,7 +303,7 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
 | **`internal/metrics/metrics.go`** | **Telemetry Storage Initialization**: `metrics.NewCollector()` instantiates atomic counters (`TotalRequests`, `ActiveConcurrency`, `QueuedRequests`) and allocates an in-memory 1024-slot circular ring buffer (`TelemetryRingBuffer`) using power-of-two bitwise masking. |
 | **`internal/proxy/proxy.go`** | **Traffic Engine Initialization**: `proxy.NewRouter()` sets up the proxy engine with a weighted semaphore (`semaphore.Weighted(cfg.MaxConcurrentRequests)`), stores the configured queue timeout, and initializes an empty backend route map. |
 | **`ui/embed.go`** | **Static Asset Compilation**: Directs the Go compiler via `//go:embed static/*` to pack `index.html`, Tailwind CSS, HTMX, and Chart.js bundles directly into the binary's read-only data segment. |
-| **`internal/server/server.go`** | **Router Construction**: `server.SetupRouter()` builds the Chi router (`chi.NewRouter()`), attaches standard middleware (`Logger`, `Recoverer`), binds the embedded static file server to `/static/*` and root `/`, mounts the `/api/events` SSE stream, and attaches the catch-all proxy handler. |
+| **`internal/server/server.go`** | **Router Construction**: `server.SetupRouter()` builds the Chi router (`chi.NewRouter()`), attaches standard middleware (`Logger`, `Recoverer`), binds the embedded static file server to `/static/*` and root `/`, and attaches the catch-all proxy handler. |
 
 ---
 
@@ -317,15 +327,12 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
 
 ---
 
-#### Phase 4: Real-Time Telemetry Collection & SSE Streaming
+#### Phase 4: Telemetry Collection & Dashboard Presentation
 
 | Go File | Lifecycle Role & Executed Logic |
 | :--- | :--- |
-| **`internal/server/server.go`** | **SSE Connection Management**: Client browser connects to `/api/events`. The handler sets HTTP streaming headers (`Content-Type: text/event-stream`, `Cache-Control: no-cache`), grabs the `http.Flusher`, and starts a 1-second `time.Ticker` loop. |
-| **`internal/discovery/discovery.go`** | **Live Target Counting**: The ticker invokes `dockerProvider.Services()` to obtain the current count of healthy discovered backends. |
-| **`internal/metrics/metrics.go`** | **Lock-Free Telemetry Snapshotting**: `collector.Snapshot(serviceCount)` takes atomic readings of `TotalRequests`, `ActiveConcurrency`, and `QueuedRequests`, packages them into a `MetricSnapshot`, and appends the snapshot to the ring buffer via bitwise index masking (`writeIdx & mask`). |
-| **`internal/server/server.go`** | **Dual Event Dispatch**: <br>1. Formats an Out-of-Band (OOB) HTML snippet with updated metric counters and flushes `event: metrics` for HTMX DOM swaps.<br>2. Marshals `MetricSnapshot` into JSON and flushes `event: telemetry` for JavaScript Chart.js line graph updates. |
-| **`ui/embed.go`** | **Frontend Presentation**: `ui/static/index.html` receives the dual events: HTMX automatically swaps `#metric-total-requests`, `#metric-active-concurrency`, `#metric-discovered-services`, and `#metric-queued-requests` in-place, while Chart.js dynamically plots concurrency trends. |
+| **`internal/metrics/metrics.go`** | **Telemetry Tracking & Ring Buffer**: `Collector` tracks cumulative metrics and records periodic snapshots into the 1024-slot circular ring buffer. |
+| **`ui/embed.go`** | **Frontend Presentation**: `ui/static/index.html` provides the administrative console, displaying baseline metrics, routing tables, and Chart.js graphs. Dynamic SSE streaming is scheduled for Milestone 5. |
 
 ---
 
@@ -333,7 +340,7 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
 
 | Go File | Lifecycle Role & Executed Logic |
 | :--- | :--- |
-| **`cmd/trafficgen/main.go`** | **Synthetic Load Generator**: Standalone CLI binary simulating diverse traffic scenarios against the running gateway. Spawns configurable concurrent worker goroutines (`-concurrency`), hits valid routes (`app.local`), delayed routes (`slow.local`), unmapped routes (triggering 502s), bursts above queue limits (triggering 503s), and subscribes to `/api/events` to verify telemetry stability under load. Tracks response status codes and throughput metrics atomically. |
+| **`cmd/trafficgen/main.go`** | **Synthetic Load Generator**: Standalone CLI binary simulating diverse traffic scenarios against the running gateway. Spawns configurable concurrent worker goroutines (`-concurrency`), hits valid routes (`app.local`), delayed routes (`slow.local`), unmapped routes (triggering 502s), and bursts above queue limits (triggering 503s). Tracks response status codes and throughput metrics atomically. |
 
 ---
 
@@ -345,7 +352,7 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
 | **`test/unit/discovery_test.go`** | **Discovery Unit Tests**: Mocks the Docker daemon using `httptest.Server` responding with synthetic container JSON payloads. Tests container label filtering, IP address resolution across networks, fallback container port selection, healthy/exited status mapping, service listing, and cancellation handling in `Start()`. |
 | **`test/unit/metrics_test.go`** | **Metrics Unit Tests**: Verifies `TelemetryRingBuffer` initialization, push behavior, bitwise wrap-around at capacity (1024), thread-safe concurrent writes, and `Collector` atomic counter increments. |
 | **`test/unit/proxy_test.go`** | **Proxy Unit Tests**: Uses `httptest.Server` backends to verify reverse proxy routing, host header normalization, dynamic backend map replacement (`UpdateBackends`), default config fallbacks, and semaphore queue exhaustion timeouts returning 503. |
-| **`test/unit/server_test.go`** | **Server Unit Tests**: Verifies Chi HTTP router endpoints (`/`, `/static/*`, `/api/events`, unmatched fallback routing), static file embedding, and SSE streaming headers. |
+| **`test/unit/server_test.go`** | **Server Unit Tests**: Verifies Chi HTTP router endpoints (`/`, `/static/*`, unmatched fallback routing) and static file embedding. |
 
 ---
 
@@ -359,13 +366,13 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
 | **`internal/discovery/discovery.go`** | Docker socket scanner & container label parser | `cmd/proxy/main.go`, `test/unit/discovery_test.go` | `github.com/docker/docker/client` |
 | **`internal/metrics/metrics.go`** | Lock-free ring buffer & atomic performance counters | `internal/proxy`, `internal/server`, `test/unit/metrics_test.go` | `sync/atomic`, `sync.RWMutex` |
 | **`internal/proxy/proxy.go`** | Semaphore concurrency control & reverse proxy routing | `internal/server/server.go`, `test/unit/proxy_test.go` | `golang.org/x/sync/semaphore`, `net/http/httputil`, `internal/metrics` |
-| **`internal/server/server.go`** | Chi HTTP routing, static assets, & SSE telemetry | `cmd/proxy/main.go`, `test/unit/server_test.go` | `github.com/go-chi/chi/v5`, `ui.Assets`, `internal/metrics`, `internal/proxy`, `internal/discovery` |
+| **`internal/server/server.go`** | Chi HTTP routing & static asset file serving | `cmd/proxy/main.go`, `test/unit/server_test.go` | `github.com/go-chi/chi/v5`, `ui.Assets`, `internal/metrics`, `internal/proxy`, `internal/discovery` |
 | **`ui/embed.go`** | Embedded static asset filesystem bundle | `internal/server/server.go` | `embed.FS` |
 | **`test/unit/config_test.go`** | Unit test suite for runtime configuration | `go test ./test/unit/...` | `internal/config` |
 | **`test/unit/discovery_test.go`**| Unit test suite for Docker discovery | `go test ./test/unit/...` | `internal/discovery`, Docker API types |
 | **`test/unit/metrics_test.go`**  | Unit test suite for telemetry & ring buffer | `go test ./test/unit/...` | `internal/metrics` |
 | **`test/unit/proxy_test.go`**    | Unit test suite for traffic queuing & routing | `go test ./test/unit/...` | `internal/proxy`, `internal/metrics` |
-| **`test/unit/server_test.go`**   | Unit test suite for HTTP server & SSE endpoints | `go test ./test/unit/...` | `internal/server`, `internal/metrics`, `internal/proxy` |
+| **`test/unit/server_test.go`**   | Unit test suite for HTTP server & static routes | `go test ./test/unit/...` | `internal/server`, `internal/metrics`, `internal/proxy` |
 
 ---
 
@@ -381,11 +388,11 @@ This section details how HTTP requests pass through the gateway, how each stage 
            ▼
     Chi HTTP Router (internal/server/server.go)
            │
-  ┌────────┴─────────────────────────────┬───────────────────────────────┐
-  │ Route: /static/*, /                  │ Route: /api/events            │ Unmatched (r.NotFound)
-  ▼                                      ▼                               ▼
-ui/embed.go (Web Assets)       SSE Telemetry Stream             Router.ServeHTTP (internal/proxy/proxy.go)
-                               (Pushes live metrics to UI)               │
+  ┌────────┴─────────────────────────────┐
+  │ Route: /static/*, /                  │ Unmatched (r.NotFound)
+  ▼                                      ▼
+ui/embed.go (Web Assets)       Router.ServeHTTP (internal/proxy/proxy.go)
+                                                                         │
                                                                          ├─► 1. TotalRequests.Add(1)
                                                                          │
                                                                          ├─► 2. QueuedRequests.Add(1)
@@ -441,10 +448,8 @@ snapshot := collector.Snapshot(serviceCount)
 ```
 This maintains a recent history of performance metrics entirely in-memory without generating heap allocations or garbage collection pauses.
 
-#### Step F: Real-Time Telemetry Delivery (SSE + HTMX)
-The endpoint `/api/events` maintains a persistent Server-Sent Events (SSE) connection with client browsers:
-1. **DOM Updates (`event: metrics`)**: Pushes pre-rendered HTML snippets with `hx-swap-oob="outerHTML"`. HTMX on the browser automatically updates counter cards without reloading the page.
-2. **Chart Updates (`event: telemetry`)**: Pushes JSON payloads containing timestamps and concurrency metrics directly to Chart.js, rendering dynamic real-time traffic graphs.
+#### Step F: Dashboard Presentation & Roadmap Alignment
+In the baseline architecture, the embedded web console (`ui/static/index.html`) serves an administrative overview showing gateway metrics, active routing table configuration, and static Chart.js telemetry curves. Live dynamic streaming over Server-Sent Events (`/api/events`) and per-route observability are deferred to **Milestone 5 (Granular Observability & Enhanced HTMX Dashboard)** per `MILESTONES.md`.
 
 ---
 
@@ -568,7 +573,7 @@ Here is what every file in the project does in simple layman terms:
 | **`internal/discovery/discovery.go`** | **The Container Scout** | Constantly monitors Docker in the background. Finds running containers labeled with `traffic-proxy.enable=true`, determines their IP and port, and alerts the proxy whenever containers appear, restart, or shut down. |
 | **`internal/proxy/proxy.go`** | **The Traffic Bouncer & Router** | The reverse proxy engine. Accepts incoming web traffic, checks if the server is too busy using a semaphore, lines requests up in a queue if needed, finds the correct downstream container, and forwards the HTTP request. |
 | **`internal/metrics/metrics.go`** | **The Scoreboard & Flight Recorder** | Keeps score of system performance. Tracks total requests, active concurrent connections, and queued requests with atomic counters, saving snapshots into a 1024-slot circular ring buffer in memory. |
-| **`internal/server/server.go`** | **The Front Door & Broadcast Tower** | Sets up the web server routes. Serves the embedded dashboard files at `/`, pushes live real-time metrics over Server-Sent Events (SSE) at `/api/events`, and hands off all other requests to the proxy bouncer. |
+| **`internal/server/server.go`** | **The Front Door & Router** | Sets up the web server routes. Serves the embedded dashboard files at `/`, and hands off all other requests to the proxy bouncer. |
 | **`ui/embed.go`** | **The Packed Backpack** | Bundles the dashboard HTML, Tailwind CSS, HTMX, and Chart.js files directly into the compiled binary so the entire gateway can be deployed as a single standalone executable. |
 | **`cmd/trafficgen/main.go`** | **The Stress Testing Drill** | A synthetic load generator CLI that fires concurrent streams of simulated HTTP requests against the proxy to test how it handles heavy loads, queueing, and traffic spikes. |
 | **`test/unit/*.go`** | **The Safety Inspectors** | Isolated automated test suites that verify configuration parsing, container discovery, atomic metrics, and proxy routing to make sure new code changes don't break the system. |
@@ -697,20 +702,73 @@ docker build -t traffic-proxy:local .
 
 To spin up the local development harness with mock fast (`app.local`) and delayed (`slow.local`) backends and generate synthetic traffic:
 
+#### 1. Start the Local Proxy
+
+**Linux / macOS (Bash):**
+
+- Start with mock Docker backends (`app.local` and `slow.local`):
 ```bash
-# 1. Start local proxy and mock services
-docker compose -f docker-compose.local.yml up -d --build
+./start.sh -m
+```
 
-# 2. Seed diverse traffic patterns (30-second run with 20 workers)
+- Start standalone proxy:
+```bash
+./start.sh
+```
+
+- Start on custom port with debug logging:
+```bash
+./start.sh -p 8080 -l DEBUG
+```
+
+**Windows (PowerShell):**
+
+- Start with mock Docker backends (`app.local` and `slow.local`):
+```powershell
+.\start.ps1 -WithMockBackends
+```
+
+- Start standalone proxy:
+```powershell
+.\start.ps1
+```
+
+- Start on custom port with debug logging:
+```powershell
+.\start.ps1 -Port 8080 -LogLevel DEBUG
+```
+
+#### 2. Seed Diverse Traffic Patterns
+
+Launch a 30-second multi-worker synthetic traffic load:
+```bash
 ./scripts/seed-traffic.sh start 20 30s
+```
 
-# 3. Simulate instant concurrency burst to exercise semaphore queueing & 503 limits
+#### 3. Simulate High-Concurrency Bursts
+
+Trigger an instant burst of 40 requests to exercise semaphore queueing and 503 rejection thresholds:
+```bash
 ./scripts/seed-traffic.sh burst 40
+```
 
-# 4. Stream and observe live SSE telemetry events in the console
-./scripts/seed-traffic.sh sse
+#### 4. Stop Traffic Generator
 
-# 5. Stop generator and teardown local containers
+Terminate background load generation workers:
+```bash
 ./scripts/seed-traffic.sh stop
-docker compose -f docker-compose.local.yml down -v
+```
+
+#### 5. Teardown Mock Backend Containers
+
+If mock backends were launched, stop and remove their Docker containers:
+
+**Linux / macOS (Bash):**
+```bash
+./start.sh --stop-backends
+```
+
+**Windows (PowerShell):**
+```powershell
+.\start.ps1 -StopBackends
 ```

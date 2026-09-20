@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TrafficProxy Edge Gateway — Admin Console</title>
-    <!-- Tailwind CSS, HTMX with SSE extension, and Chart.js -->
+    <!-- Tailwind CSS, HTMX, and Chart.js -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <script src="https://unpkg.com/htmx.org/dist/ext/sse.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
@@ -62,8 +61,8 @@
             <!-- Telemetry & Link Status -->
             <div class="flex items-center space-x-3 text-xs">
                 <div class="flex items-center space-x-2 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded font-mono">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span class="text-zinc-300">SSE: /api/events</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    <span class="text-zinc-300">Telemetry: Static Baseline</span>
                 </div>
                 <button onclick="switchTab('simulator')" class="hidden sm:inline-flex items-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 py-1 rounded border border-zinc-700 transition font-mono">
                     <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,8 +104,8 @@
         <!-- ========================================================================= -->
         <section id="tab-overview" class="tab-content active space-y-6">
 
-            <!-- Real-Time Metrics Header (HTMX SSE Connected) -->
-            <div hx-ext="sse" sse-connect="/api/events" sse-swap="metrics">
+            <!-- Metrics Header (Static Baseline) -->
+            <div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <!-- Total Requests -->
                     <div class="bg-zinc-900 border border-zinc-800 rounded p-4">
@@ -114,7 +113,7 @@
                             <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Total Requests</span>
                             <span class="text-[10px] text-zinc-500 font-mono">atomic.Uint64</span>
                         </div>
-                        <div id="metric-total-requests" class="text-3xl font-bold font-mono text-white mt-2">0</div>
+                        <div id="metric-total-requests" class="text-3xl font-bold font-mono text-white mt-2">142,850</div>
                         <p class="text-[11px] text-zinc-500 mt-1">Cumulative HTTP handled</p>
                     </div>
 
@@ -124,7 +123,7 @@
                             <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Active Concurrency</span>
                             <span class="text-[10px] text-emerald-500/80 font-mono">atomic.Int64</span>
                         </div>
-                        <div id="metric-active-concurrency" class="text-3xl font-bold font-mono text-emerald-400 mt-2">0</div>
+                        <div id="metric-active-concurrency" class="text-3xl font-bold font-mono text-emerald-400 mt-2">14</div>
                         <p class="text-[11px] text-zinc-500 mt-1">Current downstream in-flight</p>
                     </div>
 
@@ -134,7 +133,7 @@
                             <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Discovered Services</span>
                             <span class="text-[10px] text-sky-400/80 font-mono">Docker API</span>
                         </div>
-                        <div id="metric-discovered-services" class="text-3xl font-bold font-mono text-sky-400 mt-2">0</div>
+                        <div id="metric-discovered-services" class="text-3xl font-bold font-mono text-sky-400 mt-2">4</div>
                         <p class="text-[11px] text-zinc-500 mt-1">Healthy labeled containers</p>
                     </div>
 
@@ -154,8 +153,8 @@
             <div class="bg-zinc-900 border border-zinc-800 rounded p-4 sm:p-5">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-3 border-b border-zinc-800 gap-2">
                     <div>
-                        <h2 class="text-sm font-semibold text-zinc-200">Live Gateway Telemetry Stream</h2>
-                        <p class="text-xs text-zinc-400">1-second streaming telemetry over Server-Sent Events (<code class="font-mono text-zinc-300">event: telemetry</code>)</p>
+                        <h2 class="text-sm font-semibold text-zinc-200">Gateway Telemetry Profile</h2>
+                        <p class="text-xs text-zinc-400">Baseline metrics snapshot (real-time streaming scheduled for Milestone 5)</p>
                     </div>
                     <div class="flex items-center space-x-4 text-xs font-mono">
                         <span class="flex items-center space-x-1.5">
@@ -766,16 +765,16 @@ services:
             }
         }
 
-        // Chart.js Setup with Utilitarian Engineering Dark Mode Aesthetics
+        // Chart.js Setup with Utilitarian Engineering Dark Mode Aesthetics (Static Baseline Telemetry)
         const ctx = document.getElementById('trafficChart').getContext('2d');
         window.trafficChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: [],
+                labels: ['12:00', '12:05', '12:10', '12:15', '12:20', '12:25', '12:30', '12:35', '12:40', '12:45', '12:50', '12:55', '13:00', '13:05', '13:10', '13:15', '13:20', '13:25', '13:30', '13:35'],
                 datasets: [
                     {
                         label: 'Active Concurrency',
-                        data: [],
+                        data: [14, 18, 15, 22, 35, 42, 38, 28, 20, 16, 24, 29, 27, 21, 17, 14, 19, 23, 18, 14],
                         borderColor: '#10b981',
                         backgroundColor: 'rgba(16, 185, 129, 0.08)',
                         fill: true,
@@ -786,7 +785,7 @@ services:
                     },
                     {
                         label: 'Queued Requests',
-                        data: [],
+                        data: [0, 0, 0, 1, 3, 5, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0],
                         borderColor: '#f59e0b',
                         backgroundColor: 'rgba(245, 158, 11, 0.08)',
                         fill: true,
@@ -813,7 +812,7 @@ services:
                     y: {
                         beginAtZero: true,
                         grid: { color: '#27272a' },
-                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 10 }, stepSize: 1 }
+                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 10 }, stepSize: 10 }
                     }
                 },
                 plugins: {
@@ -829,30 +828,6 @@ services:
                         titleFont: { family: 'ui-monospace, monospace', size: 11 },
                         bodyFont: { family: 'ui-monospace, monospace', size: 11 }
                     }
-                }
-            }
-        });
-
-        // HTMX SSE Event Handler for Real-Time Telemetry
-        document.body.addEventListener('htmx:sseMessage', function(e) {
-            if (e.detail.type === 'telemetry') {
-                try {
-                    const data = JSON.parse(e.detail.data);
-                    const timeLabel = new Date().toLocaleTimeString();
-
-                    const chart = window.trafficChart;
-                    if (chart.data.labels.length > 25) {
-                        chart.data.labels.shift();
-                        chart.data.datasets[0].data.shift();
-                        chart.data.datasets[1].data.shift();
-                    }
-
-                    chart.data.labels.push(timeLabel);
-                    chart.data.datasets[0].data.push(data.active_concurrency || 0);
-                    chart.data.datasets[1].data.push(data.queued_requests || 0);
-                    chart.update('none');
-                } catch (err) {
-                    console.error("Failed to parse telemetry JSON", err);
                 }
             }
         });

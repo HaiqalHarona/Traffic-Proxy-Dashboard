@@ -2,7 +2,7 @@
 
 A lightweight, container-aware HTTP reverse proxy and edge gateway designed for homelabs and single-server deployments with cluster discovery expansion capability. 
 
-It auto-discovers Docker backends via container labels, actively manages request queues with semaphores to prevent downstream overload, and streams real-time telemetry to an embedded HTMX dashboard via Server-Sent Events (SSE).
+It auto-discovers Docker backends via container labels, actively manages request queues with semaphores to prevent downstream overload, and presents operational metrics via an embedded HTMX dashboard.
 
 ---
 
@@ -39,7 +39,7 @@ Traffic-Proxy-Dashboard/
 │       └── ci.yml           # GitHub Actions CI/CD workflow
 ├── cmd/
 │   ├── proxy/
-│   │   └── main.go          # Binary entrypoint: Chi routing, SSE telemetry, static UI serving
+│   │   └── main.go          # Binary entrypoint: Chi routing, telemetry setup, static UI serving
 │   └── trafficgen/
 │       └── main.go          # Synthetic traffic generator simulating diverse routing loads
 ├── doc/
@@ -57,9 +57,9 @@ Traffic-Proxy-Dashboard/
 │   ├── proxy/
 │   │   └── proxy.go         # Traffic queue management, semaphores & reverse proxying
 │   └── server/
-│       └── server.go        # Chi HTTP router, telemetry SSE handler, static UI serving
+│       └── server.go        # Chi HTTP router, static UI file serving, proxy dispatch
 ├── scripts/
-│   └── seed-traffic.sh      # CLI helper to generate bursts and stream SSE telemetry
+│   └── seed-traffic.sh      # CLI helper to generate continuous loads and bursts
 ├── test/
 │   └── unit/                # Dedicated unit test suite decoupled from production code
 ├── ui/
@@ -70,7 +70,8 @@ Traffic-Proxy-Dashboard/
 ├── .golangci.yml            # golangci-lint linter configurations
 ├── Dockerfile               # Multi-stage scratch build (< 20MB)
 ├── docker-compose.yml       # Production Compose configuration
-├── docker-compose.local.yml # Local development harness with mock backends
+├── start.ps1                # PowerShell local build and start script
+├── start.sh                 # Linux/Bash local build and start script
 └── go.mod                   # Module definitions and dependencies
 ```
 
@@ -88,25 +89,90 @@ Access the dashboard at `http://localhost`.
 
 ### Local Development & Traffic Replication
 
-To test local builds with mock backends and synthetic traffic:
+To test local builds natively with mock backends and synthetic traffic:
 
+#### 1. Start the Local Proxy
+
+**Linux / macOS (Bash):**
+
+- Start with mock Docker backends (`app.local` and `slow.local`):
 ```bash
-# 1. Start local proxy with fast and slow backends
-docker compose -f docker-compose.local.yml up -d --build
-
-# 2. Seed diverse traffic patterns (runs for 30s)
-./scripts/seed-traffic.sh start 20 30s
-
-# 3. Simulate high-concurrency bursts (triggers 503s & semaphore queues)
-./scripts/seed-traffic.sh burst 40
-
-# 4. View live SSE telemetry stream in terminal
-./scripts/seed-traffic.sh sse
-
-# 5. Stop background generator and clean up containers
-./scripts/seed-traffic.sh stop
-docker compose -f docker-compose.local.yml down -v
+./start.sh -m
 ```
+
+- Start standalone proxy:
+```bash
+./start.sh
+```
+
+- Start on custom port with debug logging:
+```bash
+./start.sh -p 8080 -l DEBUG
+```
+
+**Windows (PowerShell):**
+
+- Start with mock Docker backends (`app.local` and `slow.local`):
+```powershell
+.\start.ps1 -WithMockBackends
+```
+
+- Start standalone proxy:
+```powershell
+.\start.ps1
+```
+
+- Start on custom port with debug logging:
+```powershell
+.\start.ps1 -Port 8080 -LogLevel DEBUG
+```
+
+#### 2. Seed Diverse Traffic Patterns
+
+Generate synthetic multi-route traffic for 30 seconds across 20 workers:
+```bash
+./scripts/seed-traffic.sh start 20 30s
+```
+
+#### 3. Simulate High-Concurrency Bursts
+
+Trigger an instant burst of 40 concurrent requests to test semaphore queues and 503 limits:
+```bash
+./scripts/seed-traffic.sh burst 40
+```
+
+#### 4. Stop Traffic Generator
+
+Terminate background traffic workers:
+```bash
+./scripts/seed-traffic.sh stop
+```
+
+#### 5. Teardown Mock Backends
+
+Stop and remove mock Docker containers:
+
+**Linux / macOS (Bash):**
+```bash
+./start.sh --stop-backends
+```
+
+**Windows (PowerShell):**
+```powershell
+.\start.ps1 -StopBackends
+```
+
+#### Start Script Options
+
+| Linux / macOS (`./start.sh`) | Windows (`.\start.ps1`) | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `-p`, `--port <port>` | `-Port <string>` | Gateway listening port | `:80` |
+| `-c`, `--concurrency <num>` | `-MaxConcurrent <int>` | Maximum concurrent requests | `25` |
+| `-t`, `--timeout <duration>` | `-QueueTimeout <string>` | Queue timeout before 503 | `500ms` |
+| `-i`, `--interval <duration>` | `-PollInterval <string>` | Docker discovery poll interval | `2s` |
+| `-l`, `--log-level <level>` | `-LogLevel <string>` | Log verbosity (DEBUG, INFO, WARN, ERROR) | `DEBUG` |
+| `-m`, `--with-mock-backends` | `-WithMockBackends` | Spin up mock backend containers in Docker | `false` |
+| `--stop-backends` | `-StopBackends` | Stop and remove mock containers | - |
 
 ---
 
@@ -129,4 +195,4 @@ TrafficProxy will poll `/var/run/docker.sock` and update internal routing tables
 1. **Modular Discovery (`internal/discovery`)**: Abstract `Provider` interface (`Start()`, `Services()`, `Subscribe()`) allowing simple expansion to Docker Swarm, Nomad, Kubernetes, or gossip-based cluster management.
 2. **Traffic Control (`internal/proxy`)**: Uses `golang.org/x/sync/semaphore` to cap max active concurrency and queue incoming HTTP requests safely with configurable timeout rejection (`503 Service Unavailable`).
 3. **Telemetry Engine (`internal/metrics`)**: Atomic counters for active requests and queued concurrency feeding into a lock-free power-of-two ring buffer.
-4. **Embedded UI (`ui/`)**: Single static executable binary serving static assets from embedded FS and streaming SSE updates directly to HTMX frontend.
+4. **Embedded UI (`ui/`)**: Single static executable binary serving embedded HTMX, Tailwind CSS, and Chart.js dashboard (real-time SSE streaming planned for Milestone 5).

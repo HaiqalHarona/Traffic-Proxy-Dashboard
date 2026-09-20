@@ -7,6 +7,7 @@ Operational guide for configuring, deploying, and monitoring TrafficProxy Edge G
 ## Table of Contents
 
 - [Quickstart](#quickstart)
+- [Local Development (Start Scripts)](#local-development-start-scripts)
 - [Docker Compose Deployment](#docker-compose-deployment)
 - [Container Label Configuration](#container-label-configuration)
   - [Supported Labels](#supported-labels)
@@ -33,6 +34,56 @@ To stop the gateway:
 
 ```bash
 docker compose down
+```
+
+---
+
+## Local Development (Start Scripts)
+
+For rapid local development and testing, use the included start scripts to compile `./cmd/proxy` and run the binary natively:
+
+### Linux / macOS (Bash)
+
+- Standard local build and run:
+```bash
+./start.sh
+```
+
+- Run with mock Docker backends (`app.local` and `slow.local`):
+```bash
+./start.sh -m
+```
+
+- Custom port and log level:
+```bash
+./start.sh -p 8080 -l DEBUG
+```
+
+- Stop background mock backends:
+```bash
+./start.sh --stop-backends
+```
+
+### Windows (PowerShell)
+
+- Standard local build and run:
+```powershell
+.\start.ps1
+```
+
+- Run with mock Docker backends (`app.local` and `slow.local`):
+```powershell
+.\start.ps1 -WithMockBackends
+```
+
+- Custom port and log level:
+```powershell
+.\start.ps1 -Port 8080 -LogLevel DEBUG
+```
+
+- Stop background mock backends:
+```powershell
+.\start.ps1 -StopBackends
 ```
 
 ---
@@ -111,9 +162,9 @@ curl -H "Host: metrics.local" http://localhost/
 
 ## Web Dashboard & Telemetry
 
-The embedded dashboard at `http://localhost/` provides live visibility into gateway operations via Server-Sent Events (`/api/events`).
+The embedded dashboard at `http://localhost/` provides administrative visibility into gateway operations, route registries, and traffic throttling parameters. Live dynamic streaming over SSE is scheduled for Milestone 5.
 
-### Real-Time Metrics
+### Dashboard Metrics
 
 - **Total Requests**: Cumulative HTTP requests processed since process inception.
 - **Active Concurrency**: Number of requests actively being processed by downstream backends.
@@ -122,7 +173,7 @@ The embedded dashboard at `http://localhost/` provides live visibility into gate
 
 ### Telemetry Chart
 
-The telemetry chart graphs active concurrency trends over time, dynamically updating every second through Chart.js and SSE.
+The telemetry chart provides visual representation of active concurrency and queuing levels rendered through Chart.js. Real-time per-second streaming updates are introduced in Milestone 5.
 
 ---
 
