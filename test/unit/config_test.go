@@ -11,6 +11,8 @@ import (
 
 func TestConfig_LoadDefaults(t *testing.T) {
 	// Clear any potential existing env vars
+	os.Unsetenv("ENVIRONMENT")
+	os.Unsetenv("ENV")
 	os.Unsetenv("PROXY_PORT")
 	os.Unsetenv("PROXY_MAX_CONCURRENT")
 	os.Unsetenv("PROXY_QUEUE_TIMEOUT")
@@ -19,6 +21,12 @@ func TestConfig_LoadDefaults(t *testing.T) {
 
 	cfg := config.Load()
 
+	if cfg.Environment != "PRODUCTION" {
+		t.Fatalf("Expected default Environment PRODUCTION, got %s", cfg.Environment)
+	}
+	if cfg.IsDevelopment() {
+		t.Fatalf("Expected IsDevelopment() to be false by default")
+	}
 	if cfg.Port != ":80" {
 		t.Fatalf("Expected default Port :80, got %s", cfg.Port)
 	}
@@ -83,3 +91,35 @@ func TestConfig_LoadInvalidValuesFallback(t *testing.T) {
 		t.Fatalf("Expected fallback LogLevel LevelInfo, got %v", cfg.LogLevel)
 	}
 }
+
+func TestConfig_EnvironmentVariations(t *testing.T) {
+	// Test 1: DEVELOPMENT uppercase
+	t.Setenv("ENVIRONMENT", "DEVELOPMENT")
+	cfg := config.Load()
+	if cfg.Environment != "DEVELOPMENT" || !cfg.IsDevelopment() {
+		t.Fatalf("Expected DEVELOPMENT mode, got %s", cfg.Environment)
+	}
+
+	// Test 2: development lowercase
+	t.Setenv("ENVIRONMENT", "development")
+	cfg = config.Load()
+	if cfg.Environment != "DEVELOPMENT" || !cfg.IsDevelopment() {
+		t.Fatalf("Expected case-insensitive DEVELOPMENT mode, got %s", cfg.Environment)
+	}
+
+	// Test 3: Fallback via ENV var
+	os.Unsetenv("ENVIRONMENT")
+	t.Setenv("ENV", "DEVELOPMENT")
+	cfg = config.Load()
+	if cfg.Environment != "DEVELOPMENT" || !cfg.IsDevelopment() {
+		t.Fatalf("Expected ENV fallback to DEVELOPMENT mode, got %s", cfg.Environment)
+	}
+
+	// Test 4: Explicit PRODUCTION
+	t.Setenv("ENVIRONMENT", "PRODUCTION")
+	cfg = config.Load()
+	if cfg.Environment != "PRODUCTION" || cfg.IsDevelopment() {
+		t.Fatalf("Expected PRODUCTION mode, got %s", cfg.Environment)
+	}
+}
+

@@ -10,6 +10,7 @@ import (
 
 // Config encapsulates gateway runtime parameters loaded from environment variables.
 type Config struct {
+	Environment           string
 	Port                  string
 	MaxConcurrentRequests int64
 	QueueTimeout          time.Duration
@@ -17,14 +18,34 @@ type Config struct {
 	LogLevel              slog.Level
 }
 
+// IsDevelopment returns true if running under the DEVELOPMENT profile.
+func (c Config) IsDevelopment() bool {
+	return c.Environment == "DEVELOPMENT"
+}
+
 // Load reads configuration parameters from environment variables with sensible defaults.
 func Load() Config {
 	cfg := Config{
+		Environment:           "PRODUCTION",
 		Port:                  ":80",
 		MaxConcurrentRequests: 5000,
 		QueueTimeout:          3 * time.Second,
 		DockerPollInterval:    5 * time.Second,
 		LogLevel:              slog.LevelInfo,
+	}
+
+	if env := os.Getenv("ENVIRONMENT"); env != "" {
+		if strings.EqualFold(strings.TrimSpace(env), "DEVELOPMENT") {
+			cfg.Environment = "DEVELOPMENT"
+		} else {
+			cfg.Environment = "PRODUCTION"
+		}
+	} else if env := os.Getenv("ENV"); env != "" {
+		if strings.EqualFold(strings.TrimSpace(env), "DEVELOPMENT") {
+			cfg.Environment = "DEVELOPMENT"
+		} else {
+			cfg.Environment = "PRODUCTION"
+		}
 	}
 
 	if port := os.Getenv("PROXY_PORT"); port != "" {

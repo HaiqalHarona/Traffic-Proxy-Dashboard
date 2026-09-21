@@ -29,7 +29,7 @@ func main() {
 	target := flag.String("target", "http://localhost:80", "Base URL of TrafficProxy")
 	concurrency := flag.Int("concurrency", 15, "Number of concurrent traffic worker goroutines")
 	duration := flag.Duration("duration", 15*time.Second, "Test duration (0 for infinite until SIGINT)")
-	testSSE := flag.Bool("sse", false, "Whether to launch a concurrent SSE telemetry subscriber (Milestone 5)")
+	testSSE := flag.Bool("sse", true, "Whether to launch a concurrent SSE telemetry subscriber")
 	flag.Parse()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

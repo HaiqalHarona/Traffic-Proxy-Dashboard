@@ -67,7 +67,7 @@ func main() {
 		}()
 	}
 
-	r := server.SetupRouter(collector, router, dockerProvider)
+	r := server.SetupRouter(collector, router, dockerProvider, cfg)
 
 	server := &http.Server{
 		Addr:         cfg.Port,
@@ -78,7 +78,7 @@ func main() {
 	}
 
 	go func() {
-		slog.Info("TrafficProxy Edge Gateway running", "addr", cfg.Port)
+		slog.Info("SanProx Edge Gateway running", "addr", cfg.Port, "environment", cfg.Environment)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("HTTP server error", "error", err)
 			os.Exit(1)

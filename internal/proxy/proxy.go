@@ -84,6 +84,17 @@ func (r *Router) UpdateBackends(routes map[string]*url.URL) {
 	r.backends = newBackends
 }
 
+// Backends returns a list of registered backend host rules.
+func (r *Router) Backends() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	hosts := make([]string, 0, len(r.backends))
+	for h := range r.backends {
+		hosts = append(hosts, h)
+	}
+	return hosts
+}
+
 // ServeHTTP handles request queuing, concurrency control, and proxy forwarding.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.metrics.TotalRequests.Add(1)

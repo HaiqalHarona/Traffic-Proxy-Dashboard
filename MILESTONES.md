@@ -18,8 +18,10 @@ All baseline architecture components have been systematically audited against th
   - *Evidence*: [`internal/metrics/metrics.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/metrics/metrics.go#L12-L108); tested in [`test/unit/metrics_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/metrics_test.go).
 - [x] **Embedded UI Dashboard**: Single static executable binary serving static assets from embedded filesystem (`//go:embed`).
   - *Evidence*: [`ui/embed.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/embed.go), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html); tested in [`test/unit/server_test.go:TestSetupRouter_Endpoints`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go).
-- [ ] **Live SSE Telemetry Streaming (`/api/events`)**: Server-Sent Events (SSE) streaming live DOM updates to HTMX and JSON to Chart.js.
-  - *Audit Note*: **Pending / Scheduled for Milestone 5**. Baseline dashboard displays static baseline telemetry snapshot; real-time event streaming deferred to Milestone 5.
+- [x] **Live SSE Telemetry Streaming (`/api/events`)**: Server-Sent Events (SSE) streaming live DOM updates to HTMX and JSON to Chart.js.
+  - *Evidence*: [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html); tested in [`test/unit/server_test.go:TestSetupRouter_SSEEvents`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go).
+- [x] **Developer Sandbox & Interactive Controls**: Environment profiling (`DEVELOPMENT` vs `PRODUCTION`), dynamic Docker service target sampling in synthetic seeder (`POST /api/dev/seed`), queue saturation stress testing (`POST /api/dev/stress`), atomic metrics reset (`POST /api/dev/reset-metrics`), and live runtime state inspection (`GET /api/dev/debug-state`) protected by production access guards (403 Forbidden).
+  - *Evidence*: [`internal/server/dev.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/dev.go), [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html); tested in [`test/unit/server_test.go:TestSetupRouter_DevEndpoints_DevelopmentMode`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go), [`TestSetupRouter_DevEndpoints_ProductionForbidden`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go), [`TestSetupRouter_DevSeed_DynamicDockerSampling`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go).
 - [x] **Testing & CI**: Decoupled unit test suite (`test/unit/`), `.golangci.yml` linting rules, and multi-stage scratch container compilation via GitHub Actions (`.github/workflows/ci.yml`).
   - *Evidence*: [`test/unit/`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/), [`.golangci.yml`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.golangci.yml), [`.github/workflows/ci.yml`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.github/workflows/ci.yml), [`Dockerfile`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/Dockerfile).
 
@@ -203,19 +205,21 @@ All baseline architecture components have been systematically audited against th
 
 ### 5.3 Interactive HTMX Dashboard & Live Real-Time Telemetry
 - [ ] **Feature**: Real-time Server-Sent Events (SSE) telemetry stream (`/api/events`) and interactive management console.
-- **Implementation Plan**:
-  - **Live Telemetry Stream**: Mount `/api/events` in `internal/server/server.go` emitting dual SSE streams (`event: metrics` for HTMX OOB updates and `event: telemetry` for Chart.js updates).
-  - **Service Inventory Table**:
-    - Live list of all discovered backends, internal IP addresses, target ports, health status, and active connections.
-    - Status pills: Green (healthy), Red (unhealthy/failing), Yellow (draining).
-  - **Interactive Controls**:
-    - Maintenance Mode / Drain toggle: Stop routing new traffic to a specific backend without killing the container.
-    - Live slider to adjust global concurrency limit and queue timeouts on the fly.
-  - **Live Log Stream**:
-    - SSE-streamed structured JSON log feed with client-side level filtering (`INFO`, `WARN`, `ERROR`).
-- **Target Files**: `ui/static/index.html`, `internal/server/server.go`, `cmd/trafficgen/main.go`.
-- **Status**: **Pending (Scheduled for Milestone 5)**.
-  - *Current State*: The frontend in [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html) serves an engineering dashboard displaying baseline metrics and static charts. The SSE subscriber in [`cmd/trafficgen/main.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/cmd/trafficgen/main.go#L32) is flagged for Milestone 5 (`-sse` default: `false`). Real-time `/api/events` SSE router integration and live controls will be implemented in this milestone.
+- **Sub-Features & Implementation Progress**:
+  - [x] **Live Telemetry Stream (`/api/events`)**: Chi router SSE endpoint emitting dual streams (`event: metrics` for HTMX OOB DOM swaps and `event: telemetry` for dynamic Chart.js updates with 25-point sliding window).
+    - *Evidence*: [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go#L67-L147), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L133-L176), [`test/unit/server_test.go:TestSetupRouter_SSEEvents`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go#L56-L98).
+  - [x] **Dynamic Environment Profile & Status Dot**: Runtime environment injection (`__SANPROX_ENVIRONMENT__`), status badge pill, and live gateway connection indicator (`#gateway-status-dot`) with automatic offline recovery handling on `htmx:sseError`.
+    - *Evidence*: [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L48-L52), [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go#L44-L55), [`test/unit/server_test.go:TestSetupRouter_BrandingAndConfig`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go#L100-L148).
+  - [x] **Interactive Dev Console & Synthetic Seeder**: In-dashboard quick actions and dedicated Dev Tools tab supporting synthetic traffic seeding with dynamic Docker service sampling (`POST /api/dev/seed`), queue saturation testing (`POST /api/dev/stress`), atomic counter reset (`POST /api/dev/reset-metrics`), and live runtime state inspection (`GET /api/dev/debug-state`).
+    - *Evidence*: [`internal/server/dev.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/dev.go), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L97-L131), [`test/unit/server_test.go:TestSetupRouter_DevSeed_DynamicDockerSampling`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go#L247-L290).
+  - [x] **Routing Discovery Table & Compose Generator**: Active virtual host rule inspection table with filter search and one-click Docker Compose YAML generator snippet.
+    - *Evidence*: [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L227-L338).
+  - [ ] **Maintenance Mode / Drain toggle**: Stop routing new traffic to a specific backend without killing the container.
+  - [ ] **Live Slider for Runtime Limits**: Dynamic concurrency limit and queue timeout adjustments on the fly.
+  - [ ] **Live Application Log Stream**: Real-time daemon log stream over SSE with client-side log level filtering.
+- **Target Files**: `ui/static/index.html`, `internal/server/server.go`, `internal/server/dev.go`, `cmd/trafficgen/main.go`.
+- **Status**: **In Progress (Live SSE Streaming, Dev Tools Console, and Dynamic Docker Seeder Complete; Drain & Live Logs Pending)**.
+  - *Current State*: The real-time `/api/events` Server-Sent Events stream is implemented in [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go) and verified by [`test/unit/server_test.go:TestSetupRouter_SSEEvents`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go). [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html) receives live dual streams via HTMX SSE extension and dynamic Chart.js rolling updates. [`internal/server/dev.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/dev.go) provides full developer and mock control endpoints with dynamic Docker service sampling. [`cmd/trafficgen/main.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/cmd/trafficgen/main.go) and [`scripts/seed-traffic.sh`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/scripts/seed-traffic.sh) support live streaming verification. Interactive backend drain controls and log filtering remain pending.
 
 ---
 
@@ -224,10 +228,10 @@ All baseline architecture components have been systematically audited against th
 **Objective**: Provide dynamic production configuration and ensure strict reliability under benchmark load.
 
 ### 6.1 Centralized Dynamic Configuration
-- [x] **Feature**: Unified configuration via environment variables and local start scripts.
-  - *Evidence*: [`internal/config/config.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/config/config.go#L20-L70), [`.env.example`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.env.example), [`.env`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.env), [`start.ps1`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/start.ps1), [`start.sh`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/start.sh).
-  - Supported: `PROXY_PORT`, `PROXY_MAX_CONCURRENT`, `PROXY_QUEUE_TIMEOUT`, `DOCKER_POLL_INTERVAL`, `LOG_LEVEL`.
-  - *Status*: **Implemented (Core Environment Configuration)**.
+- [x] **Feature**: Unified configuration via environment variables, profile detection, and local start scripts.
+  - *Evidence*: [`internal/config/config.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/config/config.go#L12-L92), [`.env.example`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.env.example), [`.env`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.env), [`start.ps1`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/start.ps1), [`start.sh`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/start.sh); tested in [`test/unit/config_test.go:TestConfig_EnvironmentVariations`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/config_test.go).
+  - Supported: `ENVIRONMENT` (`DEVELOPMENT`/`PRODUCTION`), `PROXY_PORT`, `PROXY_MAX_CONCURRENT`, `PROXY_QUEUE_TIMEOUT`, `DOCKER_POLL_INTERVAL`, `LOG_LEVEL`.
+  - *Status*: **Implemented (Core Environment Configuration & Profile Guards)**.
 
 ### 6.2 End-to-End (E2E) Integration Test Suite
 - [ ] **Feature**: Automated integration verification running real Docker daemon containers.
@@ -251,10 +255,10 @@ All baseline architecture components have been systematically audited against th
 
 | Milestone | Key Features | Status | Priority | Estimated Complexity | Core Packages |
 | :--- | :--- | :---: | :--- | :--- | :--- |
-| **Baseline Architecture** | Single-host proxy, Semaphore queue, Docker discovery, Embedded UI | **Completed** | Foundation | - | `internal/*`, `ui/` |
+| **Baseline Architecture** | Single-host proxy, Semaphore queue, Docker discovery, Embedded UI, Dev Controls | **Completed** | Foundation | - | `internal/*`, `ui/` |
 | **M1: Load Balancing & Routing** | Multi-replica pools, Round-Robin, Path matching, WebSocket | **Pending** | **P0 (Immediate)** | Medium | `internal/proxy` |
 | **M2: TLS & Security** | Let's Encrypt ACME, Custom certs, HTTPS redirect, Rate limiting | **Pending** | **P0 (Immediate)** | High | `internal/server`, `internal/proxy` |
 | **M3: Health Checks & Resiliency**| Active HTTP probes, Circuit Breakers, Safe retries | **Pending** | **P1 (High)** | Medium | `internal/discovery`, `internal/proxy` |
 | **M4: Event-Driven Discovery** | Real-time Docker events, File/Static provider, Swarm/K8s | **Pending** | **P1 (High)** | Medium | `internal/discovery` |
-| **M5: Observability & Dashboard** | Per-route metrics, Prometheus `/metrics`, Live SSE stream, Interactive UI | **Pending** | **P2 (Medium)** | Medium | `internal/metrics`, `ui/`, `internal/server` |
-| **M6: Config, E2E & Hardening** | Environment config (Done), `testcontainers-go` E2E, Load benchmarks | **In Progress** | **P2 (Medium)** | Low | `internal/config`, `test/` |
+| **M5: Observability & Dashboard** | Live SSE stream (Done), Dev Controls & Seeder (Done), Per-route metrics, Prometheus `/metrics`, Drain controls | **In Progress** | **P2 (Medium)** | Medium | `internal/metrics`, `ui/`, `internal/server` |
+| **M6: Config, E2E & Hardening** | Environment config & profiles (Done), `testcontainers-go` E2E, Load benchmarks | **In Progress** | **P2 (Medium)** | Low | `internal/config`, `test/` |

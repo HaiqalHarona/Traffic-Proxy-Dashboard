@@ -13,6 +13,7 @@ if [ -f .env ]; then
 fi
 
 PORT="${PROXY_PORT:-:80}"
+ENVIRONMENT="${ENVIRONMENT:-DEVELOPMENT}"
 MAX_CONCURRENT="${PROXY_MAX_CONCURRENT:-25}"
 QUEUE_TIMEOUT="${PROXY_QUEUE_TIMEOUT:-500ms}"
 POLL_INTERVAL="${DOCKER_POLL_INTERVAL:-2s}"
@@ -24,6 +25,7 @@ usage() {
   echo "Usage: $0 [options]"
   echo ""
   echo "Options:"
+  echo "  -e, --env <env>               Environment: DEVELOPMENT, PRODUCTION (default: DEVELOPMENT)"
   echo "  -p, --port <port>             Port to listen on (default: :80 or \$PROXY_PORT)"
   echo "  -c, --concurrency <num>       Max concurrent requests (default: 25)"
   echo "  -t, --timeout <duration>      Queue timeout duration (default: 500ms)"
@@ -37,6 +39,10 @@ usage() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -e|--env)
+      ENVIRONMENT="$2"
+      shift 2
+      ;;
     -p|--port)
       PORT="$2"
       shift 2
@@ -140,13 +146,14 @@ fi
 echo "==> Building traffic-proxy binary..."
 go build -o traffic-proxy ./cmd/proxy
 
+export ENVIRONMENT="$ENVIRONMENT"
 export PROXY_PORT="$PORT"
 export PROXY_MAX_CONCURRENT="$MAX_CONCURRENT"
 export PROXY_QUEUE_TIMEOUT="$QUEUE_TIMEOUT"
 export DOCKER_POLL_INTERVAL="$POLL_INTERVAL"
 export LOG_LEVEL="$LOG_LEVEL"
 
-echo "==> Starting TrafficProxy on port $PORT (LogLevel: $LOG_LEVEL, MaxConcurrent: $MAX_CONCURRENT, QueueTimeout: $QUEUE_TIMEOUT)..."
+echo "==> Starting SanProx on port $PORT (Environment: $ENVIRONMENT, LogLevel: $LOG_LEVEL, MaxConcurrent: $MAX_CONCURRENT, QueueTimeout: $QUEUE_TIMEOUT)..."
 echo "Press Ctrl+C to stop."
 
 ./traffic-proxy

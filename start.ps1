@@ -21,6 +21,7 @@
 #>
 [CmdletBinding()]
 param (
+    [string]$Environment = $(if ($env:ENVIRONMENT) { $env:ENVIRONMENT } else { "DEVELOPMENT" }),
     [string]$Port = $(if ($env:PROXY_PORT) { $env:PROXY_PORT } else { ":80" }),
     [int]$MaxConcurrent = 25,
     [string]$QueueTimeout = "500ms",
@@ -157,13 +158,14 @@ if (-not $Port.StartsWith(":")) {
     $Port = ":$Port"
 }
 
+$env:ENVIRONMENT = $Environment
 $env:PROXY_PORT = $Port
 $env:PROXY_MAX_CONCURRENT = $MaxConcurrent.ToString()
 $env:PROXY_QUEUE_TIMEOUT = $QueueTimeout
 $env:DOCKER_POLL_INTERVAL = $PollInterval
 $env:LOG_LEVEL = $LogLevel
 
-Write-Host "==> Starting TrafficProxy on port $Port (LogLevel: $LogLevel, MaxConcurrent: $MaxConcurrent, QueueTimeout: $QueueTimeout)..." -ForegroundColor Green
+Write-Host "==> Starting SanProx on port $Port (Environment: $Environment, LogLevel: $LogLevel, MaxConcurrent: $MaxConcurrent, QueueTimeout: $QueueTimeout)..." -ForegroundColor Green
 Write-Host "Press Ctrl+C to stop." -ForegroundColor Gray
 
 try {

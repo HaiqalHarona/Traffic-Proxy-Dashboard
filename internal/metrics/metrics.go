@@ -13,6 +13,8 @@ type MetricSnapshot struct {
 	ActiveConcurrency  int64  `json:"active_concurrency"`
 	QueuedRequests     int64  `json:"queued_requests"`
 	DiscoveredServices int    `json:"discovered_services"`
+	HealthyServices    int    `json:"healthy_services"`
+	SystemHealthy      bool   `json:"system_healthy"`
 }
 
 // TelemetryRingBuffer provides thread-safe ring buffer storage for telemetry snapshots.
@@ -66,14 +68,30 @@ func NewCollector() *Collector {
 	}
 }
 
-func (c *Collector) Snapshot(discoveredCount int) MetricSnapshot {
+func (c *Collector) Snapshot(discoveredCount int, optionalHealthy ...int) MetricSnapshot {
+	healthyCount := discoveredCount
+	if len(optionalHealthy) > 0 {
+		healthyCount = optionalHealthy[0]
+	}
+	systemHealthy := (discoveredCount > 0 && healthyCount == discoveredCount)
+
 	s := MetricSnapshot{
 		Timestamp:          time.Now().UnixMilli(),
 		TotalRequests:      c.TotalRequests.Load(),
 		ActiveConcurrency:  c.ActiveConcurrency.Load(),
 		QueuedRequests:     c.QueuedRequests.Load(),
 		DiscoveredServices: discoveredCount,
+		HealthyServices:    healthyCount,
+		SystemHealthy:      systemHealthy,
 	}
 	c.RingBuffer.Push(s)
 	return s
 }
+
+// Reset atomically resets all metric counters back to zero.
+func (c *Collector) Reset() {
+	c.TotalRequests.Store(0)
+	c.ActiveConcurrency.Store(0)
+	c.QueuedRequests.Store(0)
+}
+
