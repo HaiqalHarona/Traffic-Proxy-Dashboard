@@ -153,5 +153,3 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 
 	return r
 }
-
-

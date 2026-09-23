@@ -94,4 +94,3 @@ func (c *Collector) Reset() {
 	c.ActiveConcurrency.Store(0)
 	c.QueuedRequests.Store(0)
 }
-

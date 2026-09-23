@@ -18,8 +18,10 @@ MAX_CONCURRENT="${PROXY_MAX_CONCURRENT:-25}"
 QUEUE_TIMEOUT="${PROXY_QUEUE_TIMEOUT:-500ms}"
 POLL_INTERVAL="${DOCKER_POLL_INTERVAL:-2s}"
 LOG_LEVEL="${LOG_LEVEL:-DEBUG}"
-WITH_MOCK_BACKENDS=false
+WITH_MOCK_BACKENDS="${WITH_MOCK_BACKENDS:-false}"
 STOP_BACKENDS=false
+CLEAN=false
+KEEP_BINARY=false
 
 usage() {
   echo "Usage: $0 [options]"
@@ -31,8 +33,10 @@ usage() {
   echo "  -t, --timeout <duration>      Queue timeout duration (default: 500ms)"
   echo "  -i, --interval <duration>     Docker poll interval (default: 2s)"
   echo "  -l, --log-level <level>       Log level: DEBUG, INFO, WARN, ERROR (default: DEBUG)"
-  echo "  -m, --with-mock-backends      Launch mock backend containers via Docker"
+  echo "  -m, --with-mock-backends      Launch mock backend containers (or set WITH_MOCK_BACKENDS=true in .env)"
   echo "  --stop-backends               Stop mock backend containers and exit"
+  echo "  --clean                       Remove compiled binaries from workspace and exit"
+  echo "  --keep-binary                 Preserve compiled binary after exit (default: auto-clean)"
   echo "  -h, --help                    Show this help message"
   exit 1
 }
@@ -71,6 +75,14 @@ while [[ $# -gt 0 ]]; do
       STOP_BACKENDS=true
       shift
       ;;
+    --clean)
+      CLEAN=true
+      shift
+      ;;
+    --keep-binary)
+      KEEP_BINARY=true
+      shift
+      ;;
     -h|--help)
       usage
       ;;
@@ -80,6 +92,16 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+clean_binaries() {
+  echo "==> Cleaning up compiled binaries..."
+  rm -f "$SCRIPT_DIR/traffic-proxy" "$SCRIPT_DIR/traffic-proxy.exe" "$SCRIPT_DIR"/*.exe 2>/dev/null || true
+}
+
+if [ "$CLEAN" = true ]; then
+  clean_binaries
+  exit 0
+fi
 
 stop_mock_containers() {
   if docker info >/dev/null 2>&1; then
@@ -97,7 +119,7 @@ if [ "$STOP_BACKENDS" = true ]; then
   exit 0
 fi
 
-if [ "$WITH_MOCK_BACKENDS" = true ]; then
+if [[ "$WITH_MOCK_BACKENDS" =~ ^(true|1|yes|TRUE|YES)$ ]]; then
   if ! docker info >/dev/null 2>&1; then
     echo "Warning: Docker daemon is not reachable. Cannot start mock backends without Docker."
   else
@@ -135,13 +157,26 @@ HTTPServer(("", 8080), DelayedHandler).serve_forever()'
       python:3.12-alpine python3 -c "$PYTHON_SCRIPT" >/dev/null
 
     echo "Mock backends started: backend-api-local (app.local), backend-slow-local (slow.local)"
-    trap 'stop_mock_containers' EXIT INT TERM
   fi
 fi
+
+cleanup() {
+  if [ "$KEEP_BINARY" != true ]; then
+    echo "==> Cleaning up compiled binary..."
+    rm -f "$SCRIPT_DIR/traffic-proxy" "$SCRIPT_DIR/traffic-proxy.exe" 2>/dev/null || true
+  fi
+  if [ "$WITH_MOCK_BACKENDS" = true ]; then
+    stop_mock_containers
+  fi
+}
+trap cleanup EXIT INT TERM
 
 if [[ "$PORT" != :* ]]; then
   PORT=":$PORT"
 fi
+
+# Remove stale binary before compiling
+rm -f "$SCRIPT_DIR/traffic-proxy" "$SCRIPT_DIR/traffic-proxy.exe" 2>/dev/null || true
 
 echo "==> Building traffic-proxy binary..."
 go build -o traffic-proxy ./cmd/proxy
@@ -153,7 +188,7 @@ export PROXY_QUEUE_TIMEOUT="$QUEUE_TIMEOUT"
 export DOCKER_POLL_INTERVAL="$POLL_INTERVAL"
 export LOG_LEVEL="$LOG_LEVEL"
 
-echo "==> Starting SanProx on port $PORT (Environment: $ENVIRONMENT, LogLevel: $LOG_LEVEL, MaxConcurrent: $MAX_CONCURRENT, QueueTimeout: $QUEUE_TIMEOUT)..."
+echo "==> Starting SanProx on port $PORT (Environment: $ENVIRONMENT, LogLevel: $LOG_LEVEL, MaxConcurrent: $MAX_CONCURRENT, QueueTimeout: $QUEUE_TIMEOUT, MockBackends: $WITH_MOCK_BACKENDS)..."
 echo "Press Ctrl+C to stop."
 
 ./traffic-proxy
