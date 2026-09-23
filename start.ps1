@@ -18,6 +18,10 @@
     If set, launches mock backend containers (backend-api-local and backend-slow-local) via Docker.
 .PARAMETER StopBackends
     If set, stops running mock backend containers and exits.
+.PARAMETER Clean
+    If set, removes compiled .exe binaries from workspace and exits.
+.PARAMETER KeepBinary
+    If set, preserves traffic-proxy.exe after process exit (default: automatically deletes upon exit).
 #>
 [CmdletBinding()]
 param (
@@ -28,7 +32,9 @@ param (
     [string]$PollInterval = "2s",
     [string]$LogLevel = "DEBUG",
     [switch]$WithMockBackends,
-    [switch]$StopBackends
+    [switch]$StopBackends,
+    [switch]$Clean,
+    [switch]$KeepBinary
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,6 +76,9 @@ if (-not $PSBoundParameters.ContainsKey('PollInterval') -and $env:DOCKER_POLL_IN
 if (-not $PSBoundParameters.ContainsKey('LogLevel') -and $env:LOG_LEVEL) {
     $LogLevel = $env:LOG_LEVEL
 }
+if (-not $PSBoundParameters.ContainsKey('WithMockBackends') -and $env:WITH_MOCK_BACKENDS) {
+    $WithMockBackends = [bool]($env:WITH_MOCK_BACKENDS -match '^(?i:true|1|yes)$')
+}
 
 function Test-DockerAvailable {
     try {
@@ -97,6 +106,22 @@ function Stop-MockContainers {
 
 if ($StopBackends) {
     Stop-MockContainers
+    exit 0
+}
+
+function Remove-CompiledBinaries {
+    Write-Host "==> Cleaning up compiled binaries..." -ForegroundColor Gray
+    Get-ChildItem -Path $scriptDir -Filter "*.exe" -File | ForEach-Object {
+        try {
+            Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
+        } catch {
+            # Suppress errors if file is temporarily held
+        }
+    }
+}
+
+if ($Clean) {
+    Remove-CompiledBinaries
     exit 0
 }
 
@@ -147,6 +172,9 @@ HTTPServer(("", 8080), DelayedHandler).serve_forever()
     }
 }
 
+# Remove any leftover binary before compiling
+Remove-Item -Path (Join-Path $scriptDir "traffic-proxy.exe") -Force -ErrorAction SilentlyContinue
+
 Write-Host "==> Building traffic-proxy binary..." -ForegroundColor Cyan
 go build -o traffic-proxy.exe ./cmd/proxy
 if ($LASTEXITCODE -ne 0) {
@@ -165,12 +193,17 @@ $env:PROXY_QUEUE_TIMEOUT = $QueueTimeout
 $env:DOCKER_POLL_INTERVAL = $PollInterval
 $env:LOG_LEVEL = $LogLevel
 
-Write-Host "==> Starting SanProx on port $Port (Environment: $Environment, LogLevel: $LogLevel, MaxConcurrent: $MaxConcurrent, QueueTimeout: $QueueTimeout)..." -ForegroundColor Green
+Write-Host "==> Starting SanProx on port $Port (Environment: $Environment, LogLevel: $LogLevel, MaxConcurrent: $MaxConcurrent, QueueTimeout: $QueueTimeout, MockBackends: $WithMockBackends)..." -ForegroundColor Green
 Write-Host "Press Ctrl+C to stop." -ForegroundColor Gray
 
 try {
     .\traffic-proxy.exe
 } finally {
+    if (-not $KeepBinary) {
+        Write-Host "==> Cleaning up compiled binary..." -ForegroundColor Gray
+        Start-Sleep -Milliseconds 150
+        Remove-Item -Path (Join-Path $scriptDir "traffic-proxy.exe") -Force -ErrorAction SilentlyContinue
+    }
     if ($WithMockBackends) {
         Stop-MockContainers
     }

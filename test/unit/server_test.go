@@ -285,6 +285,3 @@ func TestSetupRouter_DevSeed_DynamicDockerSampling(t *testing.T) {
 		t.Fatalf("Expected dynamic docker services in sampled_hosts, got: %s", body)
 	}
 }
-
-
-
