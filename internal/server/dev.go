@@ -25,6 +25,8 @@ type ConfigResponse struct {
 	Environment   string `json:"environment"`
 	IsDevelopment bool   `json:"is_development"`
 	Version       string `json:"version"`
+	Port          string `json:"port"`
+	DockerSocket  string `json:"docker_socket"`
 }
 
 // SeedResult records the summary of a synthetic traffic run.
@@ -47,6 +49,8 @@ func handleConfig(cfg config.Config) http.HandlerFunc {
 			Environment:   cfg.Environment,
 			IsDevelopment: cfg.IsDevelopment(),
 			Version:       "v1.0.0",
+			Port:          cfg.Port,
+			DockerSocket:  cfg.DockerHost,
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)

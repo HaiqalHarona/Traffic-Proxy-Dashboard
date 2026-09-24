@@ -248,4 +248,3 @@ func TestDockerProvider_ScanAndStart(t *testing.T) {
 		t.Fatalf("Expected context cancellation error, got %v", startErr)
 	}
 }
-

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/HaiqalHarona/Traffic-Proxy-Dashboard/internal/config"
@@ -32,26 +33,69 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	// Embedded UI File Server setup
-	subFS, subErr := fs.Sub(ui.Assets, "static")
-	if subErr != nil {
-		slog.Error("Failed to locate embedded UI assets", "error", subErr)
-		os.Exit(1)
+	// Determine static asset filesystem (live disk in DEVELOPMENT if present, embedded fallback)
+	var staticFS fs.FS
+	localStaticDir := ""
+	if cfg.IsDevelopment() {
+		localStaticDir = findLocalStaticDir()
 	}
-	fileServer := http.FileServer(http.FS(subFS))
-	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
 
-	// Read embedded index.html and inject runtime environment
-	rawIndex, err := fs.ReadFile(subFS, "index.html")
-	if err != nil {
-		slog.Error("Failed to read embedded index.html", "error", err)
+	if localStaticDir != "" {
+		slog.Info("Serving UI assets live from disk (hot reload enabled)", "path", localStaticDir)
+		staticFS = os.DirFS(localStaticDir)
+	} else {
+		subFS, subErr := fs.Sub(ui.Assets, "static")
+		if subErr != nil {
+			slog.Error("Failed to locate embedded UI assets", "error", subErr)
+			os.Exit(1)
+		}
+		staticFS = subFS
+	}
+
+	fileServer := http.FileServer(http.FS(staticFS))
+	if cfg.IsDevelopment() && localStaticDir != "" {
+		r.Handle("/static/*", http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
+			fileServer.ServeHTTP(w, req)
+		})))
+	} else {
+		r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
+	}
+
+	renderIndex := func() ([]byte, error) {
+		raw, err := fs.ReadFile(staticFS, "index.html")
+		if err != nil {
+			return nil, err
+		}
+		rendered := bytes.ReplaceAll(raw, []byte("__SANPROX_ENVIRONMENT__"), []byte(cfg.Environment))
+		rendered = bytes.ReplaceAll(rendered, []byte("__SANPROX_PORT__"), []byte(cfg.Port))
+		rendered = bytes.ReplaceAll(rendered, []byte("__SANPROX_DOCKER_SOCKET__"), []byte(cfg.DockerHost))
+		return rendered, nil
+	}
+
+	cachedIndex, err := renderIndex()
+	if err != nil && (localStaticDir == "" || !cfg.IsDevelopment()) {
+		slog.Error("Failed to render index.html", "error", err)
 		os.Exit(1)
 	}
-	indexContent := bytes.ReplaceAll(rawIndex, []byte("__SANPROX_ENVIRONMENT__"), []byte(cfg.Environment))
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write(indexContent)
+		if cfg.IsDevelopment() && localStaticDir != "" {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
+			content, renderErr := renderIndex()
+			if renderErr != nil {
+				http.Error(w, "Failed to load index.html from disk", http.StatusInternalServerError)
+				return
+			}
+			_, _ = w.Write(content)
+			return
+		}
+		_, _ = w.Write(cachedIndex)
 	})
 
 	// Runtime Configuration Endpoint
@@ -103,11 +147,20 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 			statusDotClass := "w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20"
 			statusTitle := fmt.Sprintf("%d/%d healthy containers", healthyCount, serviceCount)
 			if !snapshot.SystemHealthy {
-				statusDotClass = "w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-500/20 animate-pulse"
-				if serviceCount == 0 {
-					statusTitle = "No active backend containers"
+				if cfg.IsDevelopment() {
+					statusDotClass = "w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20"
+					if serviceCount == 0 {
+						statusTitle = "Development gateway active (0 containers)"
+					} else {
+						statusTitle = fmt.Sprintf("Development gateway active (%d/%d containers)", healthyCount, serviceCount)
+					}
 				} else {
-					statusTitle = fmt.Sprintf("%d/%d containers down", serviceCount-healthyCount, serviceCount)
+					statusDotClass = "w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-500/20 animate-pulse"
+					if serviceCount == 0 {
+						statusTitle = "No active backend containers"
+					} else {
+						statusTitle = fmt.Sprintf("%d/%d containers down", serviceCount-healthyCount, serviceCount)
+					}
 				}
 			}
 
@@ -152,4 +205,18 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 	})
 
 	return r
+}
+
+// findLocalStaticDir inspects candidate relative paths to locate local UI static assets during development.
+func findLocalStaticDir() string {
+	candidates := []string{"ui/static", "./ui/static", "../ui/static", "../../ui/static"}
+	for _, c := range candidates {
+		info, err := os.Stat(c)
+		if err == nil && info.IsDir() {
+			if _, err := os.Stat(filepath.Join(c, "index.html")); err == nil {
+				return c
+			}
+		}
+	}
+	return ""
 }

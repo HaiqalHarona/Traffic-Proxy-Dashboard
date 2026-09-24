@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SanProx Edge Gateway &mdash; Admin Console</title>
+    <title>SanProx</title>
     <!-- Tailwind CSS, HTMX with SSE extension, and Chart.js -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -40,20 +40,20 @@
 <body class="bg-zinc-950 text-zinc-100 font-sans min-h-screen antialiased flex flex-col">
 
     <!-- Top Utility Status Bar -->
-    <header class="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur sticky top-0 z-50">
+    <header id="top-utility-bar" class="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
             <!-- Brand & Gateway Identification -->
             <div class="flex items-center space-x-4">
                 <div class="flex items-center space-x-2">
-                    <span id="gateway-status-dot" class="w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-500/20 animate-pulse transition-all duration-300" title="Connecting to gateway..."></span>
+                    <span id="gateway-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 transition-all duration-300" title="Gateway connected"></span>
                     <span class="font-bold text-sm tracking-tight text-zinc-100 font-mono">SanProx</span>
                     <span class="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono border border-zinc-700">v1.0.0</span>
                     <span id="env-badge" class="text-xs px-2 py-0.5 rounded font-mono font-bold border uppercase tracking-wider bg-zinc-800 text-zinc-400 border-zinc-700">__SANPROX_ENVIRONMENT__</span>
                 </div>
                 <div class="hidden md:flex items-center space-x-2 text-xs text-zinc-400 border-l border-zinc-800 pl-4">
-                    <span>Target: <code class="text-zinc-300 font-mono">:80 / :443</code></span>
+                    <span>Target: <code id="header-target-val" class="text-zinc-300 font-mono">__SANPROX_PORT__</code></span>
                     <span class="text-zinc-600">&bull;</span>
-                    <span>Socket: <code class="text-zinc-300 font-mono">/var/run/docker.sock:ro</code></span>
+                    <span>Socket: <code id="header-socket-val" class="text-zinc-300 font-mono">__SANPROX_DOCKER_SOCKET__</code></span>
                     <span class="text-zinc-600">&bull;</span>
                     <span>Runtime: <code class="text-zinc-300 font-mono">scratch (UID 65534)</code></span>
                 </div>
@@ -381,7 +381,7 @@
                         </div>
                         <div class="flex justify-between">
                             <span>Socket Endpoint:</span>
-                            <span class="text-white font-bold">/var/run/docker.sock</span>
+                            <span id="tab-socket-endpoint" class="text-white font-bold font-mono">__SANPROX_DOCKER_SOCKET__</span>
                         </div>
                         <div class="flex justify-between">
                             <span>Poll Interval:</span>
@@ -524,370 +524,15 @@
         SanProx Edge Gateway &bull; Designed for homelabs &amp; edge servers &bull; Dual SSE &amp; HTMX Engine
     </footer>
 
-    <!-- Tab Switching & Telemetry Scripts -->
+    <!-- Modular Scripts -->
     <script>
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('border-emerald-500', 'text-white');
-                el.classList.add('border-transparent');
-                if (el.id === 'tab-btn-devtools') {
-                    el.classList.remove('text-amber-300');
-                    el.classList.add('text-amber-400');
-                } else {
-                    el.classList.remove('text-white');
-                    el.classList.add('text-zinc-400');
-                }
-            });
-
-            const targetContent = document.getElementById('tab-' + tabName);
-            const targetBtn = document.getElementById('tab-btn-' + tabName);
-
-            if (targetContent) targetContent.classList.add('active');
-            if (targetBtn) {
-                targetBtn.classList.remove('border-transparent', 'text-zinc-400');
-                targetBtn.classList.add('border-emerald-500', 'text-white');
-                if (tabName === 'devtools') {
-                    targetBtn.classList.add('text-amber-300');
-                }
-            }
-
-            if (tabName === 'overview' && window.trafficChart) {
-                window.trafficChart.resize();
-            }
-        }
-
-        function copyCurl(host) {
-            const cmd = `curl -H "Host: ${host}" http://localhost/`;
-            navigator.clipboard.writeText(cmd);
-            alert(`Copied to clipboard: ${cmd}`);
-        }
-
-        function copyCompose() {
-            const yaml = `version: '3.8'\nservices:\n  my-app:\n    image: hashicorp/http-echo:0.2.3\n    command: ["-text=Hello World", "-listen=:5678"]\n    labels:\n      - "traffic-proxy.enable=true"\n      - "traffic-proxy.rule=hello.local"\n      - "traffic-proxy.port=5678"`;
-            navigator.clipboard.writeText(yaml);
-            alert("Docker Compose snippet copied to clipboard");
-        }
-
-        function refreshMockRoutes() {
-            const log = document.getElementById('log-console');
-            if (log) {
-                const now = new Date().toLocaleTimeString();
-                const entry = document.createElement('div');
-                entry.innerHTML = `<span class="text-sky-500/80">[SCAN]</span> <span class="text-zinc-500">${now}</span> Manual Docker socket scan triggered. Route table synchronized.`;
-                log.appendChild(entry);
-                log.scrollTop = log.scrollHeight;
-            }
-        }
-
-        // Chart.js Setup
-        const ctx = document.getElementById('trafficChart').getContext('2d');
-        window.trafficChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['12:00', '12:05', '12:10', '12:15', '12:20', '12:25', '12:30', '12:35', '12:40', '12:45', '12:50', '12:55', '13:00', '13:05', '13:10', '13:15', '13:20', '13:25', '13:30', '13:35'],
-                datasets: [
-                    {
-                        label: 'Active Concurrency',
-                        data: [14, 18, 15, 22, 35, 42, 38, 28, 20, 16, 24, 29, 27, 21, 17, 14, 19, 23, 18, 14],
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                        fill: true,
-                        borderWidth: 1.5,
-                        pointRadius: 2,
-                        tension: 0.2
-                    },
-                    {
-                        label: 'Queued Requests',
-                        data: [0, 0, 0, 1, 3, 5, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0],
-                        borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                        fill: true,
-                        borderWidth: 1.5,
-                        pointRadius: 2,
-                        tension: 0.2
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                interaction: { intersect: false, mode: 'index' },
-                scales: {
-                    x: {
-                        grid: { color: '#27272a' },
-                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 10 } }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: '#27272a' },
-                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 10 }, stepSize: 10 }
-                    }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#18181b',
-                        titleColor: '#f4f4f5',
-                        bodyColor: '#e4e4e7',
-                        borderColor: '#3f3f46',
-                        borderWidth: 1,
-                        titleFont: { family: 'ui-monospace, monospace', size: 11 },
-                        bodyFont: { family: 'ui-monospace, monospace', size: 11 }
-                    }
-                }
-            }
-        });
-
-        // HTMX SSE Event Handler
-        document.body.addEventListener('htmx:sseMessage', function(e) {
-            if (e.detail.type === 'telemetry') {
-                try {
-                    const data = JSON.parse(e.detail.data);
-                    const timeLabel = new Date().toLocaleTimeString();
-
-                    const chart = window.trafficChart;
-                    if (chart.data.labels.length > 25) {
-                        chart.data.labels.shift();
-                        chart.data.datasets[0].data.shift();
-                        chart.data.datasets[1].data.shift();
-                    }
-
-                    chart.data.labels.push(timeLabel);
-                    chart.data.datasets[0].data.push(data.active_concurrency || 0);
-                    chart.data.datasets[1].data.push(data.queued_requests || 0);
-                    chart.update('none');
-
-                    // Dynamic status dot beside SanProx logo
-                    const dot = document.getElementById('gateway-status-dot');
-                    if (dot) {
-                        if (data.system_healthy) {
-                            dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 transition-all duration-300";
-                            dot.title = `${data.healthy_services}/${data.discovered_services} containers healthy`;
-                        } else {
-                            dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-500/20 animate-pulse transition-all duration-300";
-                            dot.title = data.discovered_services === 0 ? "No active backend containers" : `${data.discovered_services - data.healthy_services} containers down`;
-                        }
-                    }
-                } catch (err) {
-                    console.error("Failed to parse telemetry JSON", err);
-                }
-            }
-        });
-
-        // SSE Disconnect Handler
-        document.body.addEventListener('htmx:sseError', function() {
-            const dot = document.getElementById('gateway-status-dot');
-            if (dot) {
-                dot.className = "w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-500/20 animate-pulse transition-all duration-300";
-                dot.title = "Gateway SSE connection error (offline)";
-            }
-        });
-
-        // Environment Detection & Controls
-        const SANPROX_ENV = "__SANPROX_ENVIRONMENT__";
-
-        function initEnvironmentUI() {
-            const badge = document.getElementById('env-badge');
-            const devCard = document.getElementById('dev-console-card');
-            const devTabBtn = document.getElementById('tab-btn-devtools');
-
-            const isDev = (SANPROX_ENV === "DEVELOPMENT");
-
-            if (badge) {
-                badge.textContent = SANPROX_ENV;
-                if (isDev) {
-                    badge.className = "text-xs px-2 py-0.5 rounded font-mono font-bold border uppercase tracking-wider bg-amber-500/20 text-amber-400 border-amber-500/40";
-                } else {
-                    badge.className = "text-xs px-2 py-0.5 rounded font-mono font-medium border uppercase tracking-wider bg-zinc-800 text-zinc-400 border-zinc-700";
-                }
-            }
-
-            if (devCard) {
-                if (isDev) {
-                    devCard.classList.remove('hidden');
-                } else {
-                    devCard.classList.add('hidden');
-                }
-            }
-
-            if (devTabBtn) {
-                if (isDev) {
-                    devTabBtn.classList.remove('hidden');
-                    devTabBtn.classList.add('inline-flex');
-                } else {
-                    devTabBtn.classList.add('hidden');
-                    devTabBtn.classList.remove('inline-flex');
-                }
-            }
-        }
-
-        async function runTrafficSeeder(count = 50, concurrency = 10) {
-            const btn = document.getElementById('btn-seed-traffic');
-            const text = document.getElementById('btn-seed-text');
-            const statusBox = document.getElementById('dev-status-output');
-            const statusText = document.getElementById('dev-status-text');
-            const statusTime = document.getElementById('dev-status-time');
-
-            if (btn) btn.disabled = true;
-            if (text) text.textContent = 'Seeding...';
-
-            if (statusBox) statusBox.classList.remove('hidden');
-            if (statusText) {
-                statusText.className = 'font-medium text-amber-400';
-                statusText.textContent = `Dispatching ${count} requests across ${concurrency} workers...`;
-            }
-            if (statusTime) statusTime.textContent = new Date().toLocaleTimeString();
-
-            try {
-                const res = await fetch(`/api/dev/seed?count=${count}&concurrency=${concurrency}`, { method: 'POST' });
-                const data = await res.json();
-
-                if (res.ok) {
-                    if (statusText) {
-                        const hostInfo = (data.sampled_hosts && data.sampled_hosts.length > 0) ? ` [Hosts: ${data.sampled_hosts.join(', ')}]` : '';
-                        statusText.className = 'font-medium text-emerald-400';
-                        statusText.textContent = `Seeded ${data.total_sent} requests in ${data.duration_ms}ms (${data.throughput_rps} req/s)${hostInfo} | 200 OK: ${data.status_200} | 502: ${data.status_502} | 503: ${data.status_503}`;
-                    }
-                } else {
-                    if (statusText) {
-                        statusText.className = 'font-medium text-rose-400';
-                        statusText.textContent = `Seeding failed: ${data.error || res.statusText}`;
-                    }
-                }
-            } catch (err) {
-                if (statusText) {
-                    statusText.className = 'font-medium text-rose-400';
-                    statusText.textContent = `Error: ${err.message}`;
-                }
-            } finally {
-                if (btn) btn.disabled = false;
-                if (text) text.textContent = 'Run Seeder';
-            }
-        }
-
-        async function triggerCustomSeed() {
-            const count = document.getElementById('seeder-count-input')?.value || 50;
-            const conc = document.getElementById('seeder-conc-input')?.value || 10;
-            const logBox = document.getElementById('custom-seed-log');
-            const logText = document.getElementById('custom-seed-text');
-            const btn = document.getElementById('btn-custom-seed');
-
-            if (btn) btn.disabled = true;
-            if (logBox) logBox.classList.remove('hidden');
-            if (logText) logText.textContent = `Dispatching ${count} requests (${conc} workers)...`;
-
-            try {
-                const res = await fetch(`/api/dev/seed?count=${count}&concurrency=${conc}`, { method: 'POST' });
-                const data = await res.json();
-                if (res.ok) {
-                    if (logText) {
-                        const hostInfo = (data.sampled_hosts && data.sampled_hosts.length > 0) ? ` Target hosts: <code class="text-zinc-300 font-mono">${data.sampled_hosts.join(', ')}</code>.` : '';
-                        logText.innerHTML = `<span class="text-emerald-400 font-semibold">Done:</span> Sent ${data.total_sent} requests in ${data.duration_ms}ms (${data.throughput_rps} req/s).${hostInfo} 200 OK: ${data.status_200}, 502 Bad Gateway: ${data.status_502}, 503 Overloaded: ${data.status_503}.`;
-                    }
-                } else {
-                    if (logText) logText.innerHTML = `<span class="text-rose-400 font-semibold">Error:</span> ${data.error || res.statusText}`;
-                }
-            } catch (err) {
-                if (logText) logText.innerHTML = `<span class="text-rose-400 font-semibold">Network error:</span> ${err.message}`;
-            } finally {
-                if (btn) btn.disabled = false;
-            }
-        }
-
-        async function runStressQueue(count = 100, concurrency = 30) {
-            const btn = document.getElementById('btn-stress-queue');
-            const text = document.getElementById('btn-stress-text');
-            const statusBox = document.getElementById('dev-status-output');
-            const statusText = document.getElementById('dev-status-text');
-            const statusTime = document.getElementById('dev-status-time');
-
-            if (btn) btn.disabled = true;
-            if (text) text.textContent = 'Saturating...';
-
-            if (statusBox) statusBox.classList.remove('hidden');
-            if (statusText) {
-                statusText.className = 'font-medium text-amber-400';
-                statusText.textContent = `Submitting ${count} concurrent requests to saturate queue...`;
-            }
-            if (statusTime) statusTime.textContent = new Date().toLocaleTimeString();
-
-            try {
-                const res = await fetch(`/api/dev/stress?count=${count}&concurrency=${concurrency}&hold_ms=120`, { method: 'POST' });
-                const data = await res.json();
-
-                if (res.ok) {
-                    if (statusText) {
-                        statusText.className = 'font-medium text-emerald-400';
-                        statusText.textContent = `Stress burst complete: ${data.total_sent} requests in ${data.duration_ms}ms | 503 Overloaded: ${data.status_503} | 502: ${data.status_502}`;
-                    }
-                } else {
-                    if (statusText) {
-                        statusText.className = 'font-medium text-rose-400';
-                        statusText.textContent = `Stress test failed: ${data.error || res.statusText}`;
-                    }
-                }
-            } catch (err) {
-                if (statusText) {
-                    statusText.className = 'font-medium text-rose-400';
-                    statusText.textContent = `Error: ${err.message}`;
-                }
-            } finally {
-                if (btn) btn.disabled = false;
-                if (text) text.textContent = 'Saturate Queue';
-            }
-        }
-
-        async function resetMetrics() {
-            const statusBox = document.getElementById('dev-status-output');
-            const statusText = document.getElementById('dev-status-text');
-            const statusTime = document.getElementById('dev-status-time');
-
-            try {
-                const res = await fetch('/api/dev/reset-metrics', { method: 'POST' });
-                const data = await res.json();
-                if (statusBox) statusBox.classList.remove('hidden');
-                if (statusText) {
-                    statusText.className = 'font-medium text-emerald-400';
-                    statusText.textContent = data.message || 'Telemetry metrics reset to 0';
-                }
-                if (statusTime) statusTime.textContent = new Date().toLocaleTimeString();
-
-                const mTotal = document.getElementById('metric-total-requests');
-                const mConc = document.getElementById('metric-active-concurrency');
-                const mQueued = document.getElementById('metric-queued-requests');
-                if (mTotal) mTotal.textContent = '0';
-                if (mConc) mConc.textContent = '0';
-                if (mQueued) mQueued.textContent = '0';
-            } catch (err) {
-                alert(`Failed to reset metrics: ${err.message}`);
-            }
-        }
-
-        let debugStateVisible = false;
-        async function toggleDebugState() {
-            const box = document.getElementById('debug-state-box');
-            const jsonPre = document.getElementById('debug-state-json');
-
-            if (debugStateVisible) {
-                if (box) box.classList.add('hidden');
-                debugStateVisible = false;
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/dev/debug-state');
-                const data = await res.json();
-                if (jsonPre) jsonPre.textContent = JSON.stringify(data, null, 2);
-                if (box) box.classList.remove('hidden');
-                debugStateVisible = true;
-            } catch (err) {
-                alert(`Failed to fetch debug state: ${err.message}`);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', initEnvironmentUI);
+        window.SANPROX_ENV = "__SANPROX_ENVIRONMENT__";
+        window.SANPROX_PORT = "__SANPROX_PORT__";
+        window.SANPROX_DOCKER_SOCKET = "__SANPROX_DOCKER_SOCKET__";
     </script>
+    <script src="/static/js/tabs.js"></script>
+    <script src="/static/js/chart.js"></script>
+    <script src="/static/js/sse.js"></script>
+    <script src="/static/js/dev.js"></script>
 </body>
 </html>

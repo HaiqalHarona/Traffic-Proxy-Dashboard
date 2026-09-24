@@ -35,13 +35,21 @@ func TestSetupRouter_Endpoints(t *testing.T) {
 		t.Fatalf("Expected status 200 for /, got %d", recRoot.Code)
 	}
 
-	// Test 2: Static file route
-	reqStatic := httptest.NewRequest(http.MethodGet, "/static/", nil)
-	recStatic := httptest.NewRecorder()
-	r.ServeHTTP(recStatic, reqStatic)
-
-	if recStatic.Code != http.StatusOK {
-		t.Fatalf("Expected status 200 for /static/, got %d", recStatic.Code)
+	// Test 2: Static file route & modular JS files
+	staticFiles := []string{
+		"/static/",
+		"/static/js/tabs.js",
+		"/static/js/chart.js",
+		"/static/js/sse.js",
+		"/static/js/dev.js",
+	}
+	for _, path := range staticFiles {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("Expected status 200 for %s, got %d", path, rec.Code)
+		}
 	}
 
 	// Test 3: Catch-all routes to proxy router (returns 502 for unmapped backend)
@@ -109,6 +117,8 @@ func TestSetupRouter_BrandingAndConfig(t *testing.T) {
 
 	cfg := config.Config{
 		Environment: "DEVELOPMENT",
+		Port:        ":9090",
+		DockerHost:  "/custom/docker.sock",
 	}
 
 	r := server.SetupRouter(collector, proxyRouter, nil, cfg)
@@ -128,8 +138,17 @@ func TestSetupRouter_BrandingAndConfig(t *testing.T) {
 	if !strings.Contains(body, `id="gateway-status-dot"`) {
 		t.Fatalf("Expected gateway-status-dot in root HTML response")
 	}
+	if !strings.Contains(body, `id="top-utility-bar"`) {
+		t.Fatalf("Expected top-utility-bar in root HTML response")
+	}
 	if !strings.Contains(body, "DEVELOPMENT") {
 		t.Fatalf("Expected injected 'DEVELOPMENT' in root HTML response")
+	}
+	if !strings.Contains(body, ":9090") {
+		t.Fatalf("Expected injected port ':9090' in root HTML response")
+	}
+	if !strings.Contains(body, "/custom/docker.sock") {
+		t.Fatalf("Expected injected docker socket '/custom/docker.sock' in root HTML response")
 	}
 
 	// Check /api/config
@@ -145,6 +164,44 @@ func TestSetupRouter_BrandingAndConfig(t *testing.T) {
 	}
 	if !strings.Contains(recCfg.Body.String(), `"is_development":true`) {
 		t.Fatalf("Expected is_development true in /api/config response, got %s", recCfg.Body.String())
+	}
+	if !strings.Contains(recCfg.Body.String(), `"port":":9090"`) {
+		t.Fatalf("Expected port :9090 in /api/config response, got %s", recCfg.Body.String())
+	}
+	if !strings.Contains(recCfg.Body.String(), `"docker_socket":"/custom/docker.sock"`) {
+		t.Fatalf("Expected docker_socket /custom/docker.sock in /api/config response, got %s", recCfg.Body.String())
+	}
+}
+
+func TestSetupRouter_SSEEvents_DevelopmentStatusDot(t *testing.T) {
+	t.Parallel()
+
+	collector := metrics.NewCollector()
+	proxyRouter := proxy.NewRouter(proxy.Config{
+		MaxConcurrentRequests: 10,
+		QueueTimeout:          1 * time.Second,
+	}, collector)
+
+	cfg := config.Config{
+		Environment: "DEVELOPMENT",
+	}
+
+	r := server.SetupRouter(collector, proxyRouter, nil, cfg)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/events", nil).WithContext(ctx)
+	rec := httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "gateway-status-dot") {
+		t.Fatalf("Expected gateway-status-dot in SSE metrics stream")
+	}
+	if !strings.Contains(body, "bg-emerald-500") {
+		t.Fatalf("Expected green bg-emerald-500 status dot in development mode SSE stream, got %s", body)
 	}
 }
 
@@ -283,5 +340,84 @@ func TestSetupRouter_DevSeed_DynamicDockerSampling(t *testing.T) {
 	body := recSeed.Body.String()
 	if !strings.Contains(body, "dynamic-whoami.local") || !strings.Contains(body, "dynamic-api.local") {
 		t.Fatalf("Expected dynamic docker services in sampled_hosts, got: %s", body)
+	}
+}
+
+func TestSetupRouter_LiveDiskStaticServing_Development(t *testing.T) {
+	t.Parallel()
+
+	collector := metrics.NewCollector()
+	proxyRouter := proxy.NewRouter(proxy.Config{
+		MaxConcurrentRequests: 10,
+		QueueTimeout:          1 * time.Second,
+	}, collector)
+
+	cfg := config.Config{
+		Environment: "DEVELOPMENT",
+	}
+
+	r := server.SetupRouter(collector, proxyRouter, nil, cfg)
+
+	// Test 1: Root GET / with no-cache headers in development
+	reqRoot := httptest.NewRequest(http.MethodGet, "/", nil)
+	recRoot := httptest.NewRecorder()
+	r.ServeHTTP(recRoot, reqRoot)
+
+	if recRoot.Code != http.StatusOK {
+		t.Fatalf("Expected 200 OK for /, got %d", recRoot.Code)
+	}
+	cacheControl := recRoot.Header().Get("Cache-Control")
+	if !strings.Contains(cacheControl, "no-cache") {
+		t.Fatalf("Expected no-cache in Cache-Control header for /, got %q", cacheControl)
+	}
+
+	// Test 2: Static asset GET /static/js/tabs.js with no-cache headers
+	reqStatic := httptest.NewRequest(http.MethodGet, "/static/js/tabs.js", nil)
+	recStatic := httptest.NewRecorder()
+	r.ServeHTTP(recStatic, reqStatic)
+
+	if recStatic.Code != http.StatusOK {
+		t.Fatalf("Expected 200 OK for /static/js/tabs.js, got %d", recStatic.Code)
+	}
+	staticCache := recStatic.Header().Get("Cache-Control")
+	if !strings.Contains(staticCache, "no-cache") {
+		t.Fatalf("Expected no-cache in Cache-Control header for static file, got %q", staticCache)
+	}
+}
+
+func TestSetupRouter_EmbeddedStaticServing_Production(t *testing.T) {
+	t.Parallel()
+
+	collector := metrics.NewCollector()
+	proxyRouter := proxy.NewRouter(proxy.Config{
+		MaxConcurrentRequests: 10,
+		QueueTimeout:          1 * time.Second,
+	}, collector)
+
+	cfg := config.Config{
+		Environment: "PRODUCTION",
+	}
+
+	r := server.SetupRouter(collector, proxyRouter, nil, cfg)
+
+	// Test 1: Root GET / served in production
+	reqRoot := httptest.NewRequest(http.MethodGet, "/", nil)
+	recRoot := httptest.NewRecorder()
+	r.ServeHTTP(recRoot, reqRoot)
+
+	if recRoot.Code != http.StatusOK {
+		t.Fatalf("Expected 200 OK for /, got %d", recRoot.Code)
+	}
+	if !strings.Contains(recRoot.Body.String(), "SanProx") {
+		t.Fatalf("Expected 'SanProx' in root HTML response")
+	}
+
+	// Test 2: Static asset served from embedded FS
+	reqStatic := httptest.NewRequest(http.MethodGet, "/static/js/tabs.js", nil)
+	recStatic := httptest.NewRecorder()
+	r.ServeHTTP(recStatic, reqStatic)
+
+	if recStatic.Code != http.StatusOK {
+		t.Fatalf("Expected 200 OK for /static/js/tabs.js, got %d", recStatic.Code)
 	}
 }

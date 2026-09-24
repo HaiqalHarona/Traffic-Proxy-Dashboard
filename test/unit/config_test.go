@@ -9,11 +9,12 @@ import (
 	"github.com/HaiqalHarona/Traffic-Proxy-Dashboard/internal/config"
 )
 
-func TestConfig_LoadDefaults(t *testing.T) {
-	// Clear any potential existing env vars
+func TestConfig_Load_ZeroFallbacks(t *testing.T) {
+	// Clear all config environment variables
 	os.Unsetenv("ENVIRONMENT")
 	os.Unsetenv("ENV")
 	os.Unsetenv("PROXY_PORT")
+	os.Unsetenv("DOCKER_HOST")
 	os.Unsetenv("PROXY_MAX_CONCURRENT")
 	os.Unsetenv("PROXY_QUEUE_TIMEOUT")
 	os.Unsetenv("DOCKER_POLL_INTERVAL")
@@ -21,31 +22,36 @@ func TestConfig_LoadDefaults(t *testing.T) {
 
 	cfg := config.Load()
 
-	if cfg.Environment != "PRODUCTION" {
-		t.Fatalf("Expected default Environment PRODUCTION, got %s", cfg.Environment)
+	if cfg.Environment != "" {
+		t.Fatalf("Expected empty Environment with zero fallbacks, got %q", cfg.Environment)
 	}
 	if cfg.IsDevelopment() {
-		t.Fatalf("Expected IsDevelopment() to be false by default")
+		t.Fatalf("Expected IsDevelopment() false when ENVIRONMENT is empty")
 	}
-	if cfg.Port != ":80" {
-		t.Fatalf("Expected default Port :80, got %s", cfg.Port)
+	if cfg.Port != "" {
+		t.Fatalf("Expected empty Port with zero fallbacks, got %q", cfg.Port)
 	}
-	if cfg.MaxConcurrentRequests != 5000 {
-		t.Fatalf("Expected default MaxConcurrentRequests 5000, got %d", cfg.MaxConcurrentRequests)
+	if cfg.DockerHost != "" {
+		t.Fatalf("Expected empty DockerHost with zero fallbacks, got %q", cfg.DockerHost)
 	}
-	if cfg.QueueTimeout != 3*time.Second {
-		t.Fatalf("Expected default QueueTimeout 3s, got %v", cfg.QueueTimeout)
+	if cfg.MaxConcurrentRequests != 0 {
+		t.Fatalf("Expected 0 MaxConcurrentRequests with zero fallbacks, got %d", cfg.MaxConcurrentRequests)
 	}
-	if cfg.DockerPollInterval != 5*time.Second {
-		t.Fatalf("Expected default DockerPollInterval 5s, got %v", cfg.DockerPollInterval)
+	if cfg.QueueTimeout != 0 {
+		t.Fatalf("Expected 0 QueueTimeout with zero fallbacks, got %v", cfg.QueueTimeout)
+	}
+	if cfg.DockerPollInterval != 0 {
+		t.Fatalf("Expected 0 DockerPollInterval with zero fallbacks, got %v", cfg.DockerPollInterval)
 	}
 	if cfg.LogLevel != slog.LevelInfo {
-		t.Fatalf("Expected default LogLevel LevelInfo, got %v", cfg.LogLevel)
+		t.Fatalf("Expected LevelInfo (0) zero value for LogLevel, got %v", cfg.LogLevel)
 	}
 }
 
-func TestConfig_LoadCustomEnv(t *testing.T) {
+func TestConfig_Load_StrictEnvironment(t *testing.T) {
+	t.Setenv("ENVIRONMENT", "DEVELOPMENT")
 	t.Setenv("PROXY_PORT", "8080")
+	t.Setenv("DOCKER_HOST", "unix:///custom/docker.sock")
 	t.Setenv("PROXY_MAX_CONCURRENT", "50")
 	t.Setenv("PROXY_QUEUE_TIMEOUT", "500ms")
 	t.Setenv("DOCKER_POLL_INTERVAL", "2s")
@@ -53,8 +59,17 @@ func TestConfig_LoadCustomEnv(t *testing.T) {
 
 	cfg := config.Load()
 
+	if cfg.Environment != "DEVELOPMENT" {
+		t.Fatalf("Expected Environment DEVELOPMENT, got %s", cfg.Environment)
+	}
+	if !cfg.IsDevelopment() {
+		t.Fatalf("Expected IsDevelopment() true")
+	}
 	if cfg.Port != ":8080" {
 		t.Fatalf("Expected Port :8080, got %s", cfg.Port)
+	}
+	if cfg.DockerHost != "unix:///custom/docker.sock" {
+		t.Fatalf("Expected DockerHost unix:///custom/docker.sock, got %s", cfg.DockerHost)
 	}
 	if cfg.MaxConcurrentRequests != 50 {
 		t.Fatalf("Expected MaxConcurrentRequests 50, got %d", cfg.MaxConcurrentRequests)
@@ -70,25 +85,25 @@ func TestConfig_LoadCustomEnv(t *testing.T) {
 	}
 }
 
-func TestConfig_LoadInvalidValuesFallback(t *testing.T) {
+func TestConfig_Load_InvalidValuesZero(t *testing.T) {
 	t.Setenv("PROXY_MAX_CONCURRENT", "invalid")
 	t.Setenv("PROXY_QUEUE_TIMEOUT", "invalid")
-	t.Setenv("DOCKER_POLL_INTERVAL", "-10s")
+	t.Setenv("DOCKER_POLL_INTERVAL", "not-a-duration")
 	t.Setenv("LOG_LEVEL", "UNKNOWN")
 
 	cfg := config.Load()
 
-	if cfg.MaxConcurrentRequests != 5000 {
-		t.Fatalf("Expected fallback MaxConcurrentRequests 5000, got %d", cfg.MaxConcurrentRequests)
+	if cfg.MaxConcurrentRequests != 0 {
+		t.Fatalf("Expected 0 MaxConcurrentRequests for invalid input with no fallback, got %d", cfg.MaxConcurrentRequests)
 	}
-	if cfg.QueueTimeout != 3*time.Second {
-		t.Fatalf("Expected fallback QueueTimeout 3s, got %v", cfg.QueueTimeout)
+	if cfg.QueueTimeout != 0 {
+		t.Fatalf("Expected 0 QueueTimeout for invalid input with no fallback, got %v", cfg.QueueTimeout)
 	}
-	if cfg.DockerPollInterval != 5*time.Second {
-		t.Fatalf("Expected fallback DockerPollInterval 5s, got %v", cfg.DockerPollInterval)
+	if cfg.DockerPollInterval != 0 {
+		t.Fatalf("Expected 0 DockerPollInterval for invalid input with no fallback, got %v", cfg.DockerPollInterval)
 	}
 	if cfg.LogLevel != slog.LevelInfo {
-		t.Fatalf("Expected fallback LogLevel LevelInfo, got %v", cfg.LogLevel)
+		t.Fatalf("Expected 0 (LevelInfo) for unknown LogLevel, got %v", cfg.LogLevel)
 	}
 }
 
@@ -103,16 +118,16 @@ func TestConfig_EnvironmentVariations(t *testing.T) {
 	// Test 2: development lowercase
 	t.Setenv("ENVIRONMENT", "development")
 	cfg = config.Load()
-	if cfg.Environment != "DEVELOPMENT" || !cfg.IsDevelopment() {
-		t.Fatalf("Expected case-insensitive DEVELOPMENT mode, got %s", cfg.Environment)
+	if !cfg.IsDevelopment() {
+		t.Fatalf("Expected case-insensitive DEVELOPMENT mode")
 	}
 
-	// Test 3: Fallback via ENV var
+	// Test 3: No fallback via ENV var
 	os.Unsetenv("ENVIRONMENT")
 	t.Setenv("ENV", "DEVELOPMENT")
 	cfg = config.Load()
-	if cfg.Environment != "DEVELOPMENT" || !cfg.IsDevelopment() {
-		t.Fatalf("Expected ENV fallback to DEVELOPMENT mode, got %s", cfg.Environment)
+	if cfg.Environment != "" || cfg.IsDevelopment() {
+		t.Fatalf("Expected no ENV fallback when ENVIRONMENT is unset, got %q", cfg.Environment)
 	}
 
 	// Test 4: Explicit PRODUCTION

@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Environment           string
 	Port                  string
+	DockerHost            string
 	MaxConcurrentRequests int64
 	QueueTimeout          time.Duration
 	DockerPollInterval    time.Duration
@@ -20,56 +21,38 @@ type Config struct {
 
 // IsDevelopment returns true if running under the DEVELOPMENT profile.
 func (c Config) IsDevelopment() bool {
-	return c.Environment == "DEVELOPMENT"
+	return strings.EqualFold(strings.TrimSpace(c.Environment), "DEVELOPMENT")
 }
 
-// Load reads configuration parameters from environment variables with sensible defaults.
+// Load reads configuration parameters directly from environment variables with zero fallback defaults.
 func Load() Config {
-	cfg := Config{
-		Environment:           "PRODUCTION",
-		Port:                  ":80",
-		MaxConcurrentRequests: 5000,
-		QueueTimeout:          3 * time.Second,
-		DockerPollInterval:    5 * time.Second,
-		LogLevel:              slog.LevelInfo,
+	var cfg Config
+
+	cfg.Environment = strings.TrimSpace(os.Getenv("ENVIRONMENT"))
+
+	port := strings.TrimSpace(os.Getenv("PROXY_PORT"))
+	if port != "" && !strings.HasPrefix(port, ":") {
+		cfg.Port = ":" + port
+	} else {
+		cfg.Port = port
 	}
 
-	if env := os.Getenv("ENVIRONMENT"); env != "" {
-		if strings.EqualFold(strings.TrimSpace(env), "DEVELOPMENT") {
-			cfg.Environment = "DEVELOPMENT"
-		} else {
-			cfg.Environment = "PRODUCTION"
-		}
-	} else if env := os.Getenv("ENV"); env != "" {
-		if strings.EqualFold(strings.TrimSpace(env), "DEVELOPMENT") {
-			cfg.Environment = "DEVELOPMENT"
-		} else {
-			cfg.Environment = "PRODUCTION"
-		}
-	}
-
-	if port := os.Getenv("PROXY_PORT"); port != "" {
-		if !strings.HasPrefix(port, ":") {
-			cfg.Port = ":" + port
-		} else {
-			cfg.Port = port
-		}
-	}
+	cfg.DockerHost = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
 
 	if maxConcStr := os.Getenv("PROXY_MAX_CONCURRENT"); maxConcStr != "" {
-		if val, err := strconv.ParseInt(maxConcStr, 10, 64); err == nil && val > 0 {
+		if val, err := strconv.ParseInt(maxConcStr, 10, 64); err == nil {
 			cfg.MaxConcurrentRequests = val
 		}
 	}
 
 	if queueTimeoutStr := os.Getenv("PROXY_QUEUE_TIMEOUT"); queueTimeoutStr != "" {
-		if val, err := time.ParseDuration(queueTimeoutStr); err == nil && val > 0 {
+		if val, err := time.ParseDuration(queueTimeoutStr); err == nil {
 			cfg.QueueTimeout = val
 		}
 	}
 
 	if pollIntervalStr := os.Getenv("DOCKER_POLL_INTERVAL"); pollIntervalStr != "" {
-		if val, err := time.ParseDuration(pollIntervalStr); err == nil && val > 0 {
+		if val, err := time.ParseDuration(pollIntervalStr); err == nil {
 			cfg.DockerPollInterval = val
 		}
 	}
@@ -82,7 +65,7 @@ func Load() Config {
 			cfg.LogLevel = slog.LevelWarn
 		case "ERROR":
 			cfg.LogLevel = slog.LevelError
-		default:
+		case "INFO":
 			cfg.LogLevel = slog.LevelInfo
 		}
 	}
