@@ -184,7 +184,11 @@ To expose a Docker container through TrafficProxy, add the following labels to y
 labels:
   - "traffic-proxy.enable=true"
   - "traffic-proxy.rule=app.local"
+  - "traffic-proxy.port=8080" # Optional: default fallback to container exposed port or 80
+  - "traffic-proxy.balance=round-robin" # Optional: round-robin, least-conn, random, ip-hash (default: round-robin)
 ```
+
+When multiple containers share the same `traffic-proxy.rule` (e.g. `docker compose up --scale web=3`), TrafficProxy automatically creates a multi-replica `BackendPool` and distributes traffic across all replicas using the configured load balancing algorithm. Raw containers without labels are also catalogued in discovery and probed over TCP for reachability.
 
 TrafficProxy will poll `/var/run/docker.sock` and update internal routing tables dynamically.
 

@@ -178,6 +178,23 @@ fi
 # Remove stale binary before compiling
 rm -f "$SCRIPT_DIR/traffic-proxy" "$SCRIPT_DIR/traffic-proxy.exe" 2>/dev/null || true
 
+# Verify Go binary availability
+if ! command -v go >/dev/null 2>&1; then
+  if [ -x "/usr/local/go/bin/go" ]; then
+    export PATH="/usr/local/go/bin:$PATH"
+  elif [ -x "$HOME/go/bin/go" ]; then
+    export PATH="$HOME/go/bin:$PATH"
+  elif [ -x "$HOME/.local/go/bin/go" ]; then
+    export PATH="$HOME/.local/go/bin:$PATH"
+  fi
+fi
+
+if ! command -v go >/dev/null 2>&1; then
+  echo "Error: 'go' binary not found. Go is not installed on this system or not in PATH."
+  echo "Install it via: sudo pacman -S go"
+  exit 1
+fi
+
 echo "==> Building traffic-proxy binary..."
 go build -o traffic-proxy ./cmd/proxy
 

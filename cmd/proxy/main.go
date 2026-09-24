@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -54,14 +53,17 @@ func main() {
 				case <-ctx.Done():
 					return
 				case targets := <-sub:
-					routes := make(map[string]*url.URL, len(targets))
+					router.UpdateBackends(targets)
+					healthyAndEnabled := 0
 					for _, target := range targets {
-						if target.Healthy && target.TargetURL != nil {
-							routes[target.HostRule] = target.TargetURL
+						if target.Healthy && target.Enabled && target.TargetURL != nil {
+							healthyAndEnabled++
 						}
 					}
-					router.UpdateBackends(routes)
-					slog.Info("Proxy backends updated", "discovered_count", len(targets), "active_routes", len(routes))
+					slog.Info("Proxy backends updated",
+						"discovered_count", len(targets),
+						"active_hosts", len(router.Backends()),
+						"healthy_and_enabled", healthyAndEnabled)
 				}
 			}
 		}()

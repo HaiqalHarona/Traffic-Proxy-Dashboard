@@ -176,14 +176,61 @@ func (r *Router) UpdateBackends(targets []discovery.ServiceTarget) {
 
 ---
 
-### Component 3: Discovery Label
+### Component 3: Discovery — All-Containers Scan
 
 #### [MODIFY] `internal/discovery/discovery.go`
 
-**Purpose**: No code change needed. `ServiceTarget.Labels` already captures all container labels including `traffic-proxy.balance`. The label is read downstream in `proxy.go` via `target.Labels["traffic-proxy.balance"]`.
+**What changed** (breaking from previous label-gate design):
+
+| Before | After |
+|--------|-------|
+| Skipped containers missing `traffic-proxy.enable=true` | **All running containers** are catalogued |
+| Skipped containers missing `traffic-proxy.rule` | HostRule derived from container name when label absent |
+| No reachability testing | 2-second TCP probe per container |
+| No error surface for unreachable containers | `DiscoveryError` field with human-readable cause |
+| No `Enabled` concept | `Enabled=true` for labelled containers; `false` for unlabelled (UI toggle ready) |
+
+**New `ServiceTarget` fields:**
+
+```go
+type ServiceTarget struct {
+    // ... existing fields unchanged ...
+    DiscoveryError string // non-empty when TCP probe fails — never silently dropped
+    Reachable      bool   // result of 2-second TCP dial
+    Enabled        bool   // true: label opt-in or traffic-proxy.rule present
+                          // false: raw unlabelled container (future UI toggle)
+}
+```
+
+**Host rule derivation logic:**
+
+```
+if traffic-proxy.rule label present  → use label value (explicit)
+else                                 → use container name, strip leading "/"
+```
+
+**Enabled logic:**
+
+```
+traffic-proxy.enable=true  OR  traffic-proxy.rule label present  →  Enabled = true
+no labels at all                                                  →  Enabled = false
+```
+
+**TCP probe** (`probeReachable`):
+
+```go
+// 2-second deadline, non-blocking relative to the poll interval.
+// On failure: Reachable=false, DiscoveryError="unreachable (IP:port): <err>"
+// On success: Reachable=true, DiscoveryError=""
+// Container is always added to the catalogue — never dropped.
+func probeReachable(ctx context.Context, host string, port int) (bool, error)
+```
 
 > [!NOTE]
-> Discovery already passes through all Docker labels. No structural changes required in this file.
+> The proxy routing table (`UpdateBackends`) already filters on `Healthy && Reachable` before adding a container as an active backend, so unreachable containers catalogued by discovery do not receive traffic.
+
+> [!IMPORTANT]
+> **Frontend TODO (next milestone)**: The `Enabled` field is the hook for the user-facing toggle. The UI will show all containers, and toggling a container will flip `Enabled` and call a new API endpoint that updates the in-memory inclusion list. Discovery will continue scanning everything; the proxy will only route to `Enabled && Reachable` targets.
 
 ---
 
@@ -307,17 +354,18 @@ flowchart TD
 ## File Change Summary
 
 | File | Action | Purpose |
-|------|--------|---------|
-| [`internal/proxy/balancer.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/balancer.go) | **NEW** | 4 load balancing algorithms + `Backend` struct |
-| [`internal/proxy/proxy.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go) | **MODIFY** | Replace flat map with `BackendPool` map, update `ServeHTTP` and `UpdateBackends` |
-| [`cmd/proxy/main.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/cmd/proxy/main.go) | **MODIFY** | Pass raw `[]ServiceTarget` instead of flattened map |
-| [`test/unit/proxy_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go) | **MODIFY** | Add multi-replica and pool distribution tests |
-| [`test/unit/balancer_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/balancer_test.go) | **NEW** | Isolated algorithm correctness tests |
-| [`MILESTONES.md`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/MILESTONES.md) | **MODIFY** | Check off 1.1, document implementation |
-| [`README.md`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/README.md) | **MODIFY** | Document `traffic-proxy.balance` label |
+|------|--------|---------| 
+| [`internal/proxy/balancer.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/balancer.go) | **NEW** | 4 load balancing algorithms + `Backend` struct |
+| [`internal/proxy/proxy.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go) | **MODIFY** | Replace flat map with `BackendPool` map, update `ServeHTTP` and `UpdateBackends` |
+| [`internal/discovery/discovery.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go) | **MODIFY** | All-containers scan, TCP probe, `Reachable`/`Enabled`/`DiscoveryError` fields, host rule derivation from name |
+| [`cmd/proxy/main.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/cmd/proxy/main.go) | **MODIFY** | Pass raw `[]ServiceTarget` instead of flattened map |
+| [`test/unit/discovery_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/discovery_test.go) | **MODIFY** | Updated fixture: 5 containers incl. unlabelled; assertions for `Enabled`, `HostRule` derivation, `DiscoveryError` |
+| [`test/unit/proxy_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go) | **MODIFY** | Add multi-replica and pool distribution tests |
+| [`test/unit/balancer_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/balancer_test.go) | **NEW** | Isolated algorithm correctness tests |
+| [`MILESTONES.md`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/MILESTONES.md) | **MODIFY** | Check off 1.1, document implementation |
+| [`README.md`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/README.md) | **MODIFY** | Document `traffic-proxy.balance` label |
 
 **No changes needed:**
-- `internal/discovery/discovery.go` — labels already pass through
 - `internal/server/dev.go` — `Backends()` signature unchanged
 - `internal/server/server.go` — SSE reads from discovery, not proxy
 - `internal/metrics/metrics.go` — no structural changes
