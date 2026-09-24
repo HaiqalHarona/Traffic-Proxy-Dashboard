@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 	"strconv"
 	"sync"
@@ -14,15 +15,18 @@ import (
 
 // ServiceTarget represents a discovered downstream backend.
 type ServiceTarget struct {
-	TargetURL *url.URL
-	Labels    map[string]string
-	CreatedAt time.Time
-	ID        string
-	Name      string
-	Host      string
-	HostRule  string
-	Port      int
-	Healthy   bool
+	TargetURL      *url.URL
+	Labels         map[string]string
+	CreatedAt      time.Time
+	DiscoveryError string // non-empty when the container could not be reached
+	ID             string
+	Name           string
+	Host           string
+	HostRule       string
+	Port           int
+	Healthy        bool
+	Reachable      bool // false when TCP probe fails
+	Enabled        bool // user opt-in: set by label or future UI toggle
 }
 
 // Provider abstracts service discovery backends (Docker, Swarm, Nomad, Kubernetes, Gossip).
@@ -89,7 +93,15 @@ func (d *DockerProvider) Start(ctx context.Context) error {
 	}
 }
 
-// Scan performs a single inspection of active Docker containers.
+// Scan performs a single inspection of ALL active Docker containers.
+//
+// Every running container is catalogued regardless of labels. Containers with
+// traffic-proxy.enable=true or a traffic-proxy.rule label are marked Enabled=true.
+// Unlabelled containers default to Enabled=false (ready for the UI toggle).
+//
+// A non-blocking 2-second TCP probe tests reachability. Unreachable containers
+// are included in the catalogue with Reachable=false and DiscoveryError set —
+// they are never silently dropped.
 func (d *DockerProvider) Scan(ctx context.Context) error {
 	containers, err := d.cli.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
@@ -98,29 +110,42 @@ func (d *DockerProvider) Scan(ctx context.Context) error {
 
 	targets := make([]ServiceTarget, 0, len(containers))
 	for _, c := range containers {
-		if enabled, ok := c.Labels["traffic-proxy.enable"]; !ok || enabled != "true" {
-			continue
+		var containerName string
+		if len(c.Names) > 0 {
+			containerName = c.Names[0]
+		}
+		cleanName := containerName
+		if len(cleanName) > 0 && cleanName[0] == '/' {
+			cleanName = cleanName[1:]
 		}
 
-		rule, ok := c.Labels["traffic-proxy.rule"]
-		if !ok || rule == "" {
-			continue
+		// --- Derive host rule -------------------------------------------------
+		// Prefer the explicit traffic-proxy.rule label; fall back to container name.
+		rule := c.Labels["traffic-proxy.rule"]
+		if rule == "" {
+			rule = cleanName
 		}
 
-		// Resolve container IP address
+		// Enabled when explicitly opted-in via label or a rule label is present.
+		_, hasRule := c.Labels["traffic-proxy.rule"]
+		enabled := c.Labels["traffic-proxy.enable"] == "true" || hasRule
+
+		// --- Resolve container IP ---------------------------------------------
 		var targetIP string
-		for _, net := range c.NetworkSettings.Networks {
-			if net.IPAddress != "" {
-				targetIP = net.IPAddress
-				break
+		if c.NetworkSettings != nil {
+			for _, netSettings := range c.NetworkSettings.Networks {
+				if netSettings != nil && netSettings.IPAddress != "" {
+					targetIP = netSettings.IPAddress
+					break
+				}
 			}
 		}
-
+		// Fallback: use container name as DNS alias on custom bridge networks.
 		if targetIP == "" {
-			targetIP = c.Names[0] // fallback to container name if on custom bridge
+			targetIP = cleanName
 		}
 
-		// Resolve container Port
+		// --- Resolve port -----------------------------------------------------
 		portStr := c.Labels["traffic-proxy.port"]
 		var targetPort int
 		if portStr != "" {
@@ -128,26 +153,50 @@ func (d *DockerProvider) Scan(ctx context.Context) error {
 		} else if len(c.Ports) > 0 {
 			targetPort = int(c.Ports[0].PrivatePort)
 		} else {
-			targetPort = 80 // Default HTTP port fallback
+			targetPort = 80
 		}
 
+		// --- Build target URL -------------------------------------------------
 		rawURL := fmt.Sprintf("http://%s:%d", targetIP, targetPort)
-		targetURL, err := url.Parse(rawURL)
-		if err != nil {
+		targetURL, parseErr := url.Parse(rawURL)
+		if parseErr != nil {
+			targets = append(targets, ServiceTarget{
+				ID:             c.ID,
+				Name:           containerName,
+				Host:           targetIP,
+				Port:           targetPort,
+				HostRule:       rule,
+				Labels:         c.Labels,
+				Healthy:        false,
+				Reachable:      false,
+				Enabled:        enabled,
+				CreatedAt:      time.Unix(c.Created, 0),
+				DiscoveryError: fmt.Sprintf("invalid target URL %q: %v", rawURL, parseErr),
+			})
 			continue
 		}
 
-		targets = append(targets, ServiceTarget{
+		// --- TCP reachability probe -------------------------------------------
+		reachable, probeErr := probeReachable(ctx, targetIP, targetPort)
+
+		target := ServiceTarget{
 			ID:        c.ID,
-			Name:      c.Names[0],
+			Name:      containerName,
 			Host:      targetIP,
 			Port:      targetPort,
 			HostRule:  rule,
 			TargetURL: targetURL,
 			Labels:    c.Labels,
-			Healthy:   c.State == "running",
+			Healthy:   c.State == "running" && reachable,
+			Reachable: reachable,
+			Enabled:   enabled,
 			CreatedAt: time.Unix(c.Created, 0),
-		})
+		}
+		if probeErr != nil {
+			target.DiscoveryError = fmt.Sprintf("unreachable (%s:%d): %v", targetIP, targetPort, probeErr)
+		}
+
+		targets = append(targets, target)
 	}
 
 	d.mu.Lock()
@@ -160,6 +209,20 @@ func (d *DockerProvider) Scan(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// probeReachable dials the container endpoint over TCP with a 2-second deadline.
+// Returns (true, nil) on success or (false, err) on failure.
+func probeReachable(ctx context.Context, host string, port int) (bool, error) {
+	dialCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	addr := fmt.Sprintf("%s:%d", host, port)
+	conn, err := (&net.Dialer{}).DialContext(dialCtx, "tcp", addr)
+	if err != nil {
+		return false, err
+	}
+	_ = conn.Close()
+	return true, nil
 }
 
 func (d *DockerProvider) Services() ([]ServiceTarget, error) {

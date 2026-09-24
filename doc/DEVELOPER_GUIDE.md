@@ -104,7 +104,7 @@ Application entrypoints and runnable binary mains.
 - **`cmd/proxy/main.go`**:
   - **Runtime Initialization**: Sets up structured JSON logging (`log/slog`) with configured log level, loads runtime configuration via `config.Load()`, initializes root signal handling for `SIGINT`/`SIGTERM` via `signal.NotifyContext`, and creates core `metrics.Collector` and `proxy.Router` instances.
   - **Discovery Initialization**: Instantiates `discovery.DockerProvider` targeting `/var/run/docker.sock` with polling interval from configuration and kicks off background polling.
-  - **Dynamic Route Subscription**: Subscribes to discovery events and synchronizes the proxy routing table dynamically via `router.UpdateBackends(routes)`.
+  - **Dynamic Route Subscription**: Subscribes to discovery events and synchronizes the proxy routing table dynamically via `router.UpdateBackends(targets)`.
   - **Server Execution & Graceful Teardown**: Delegates router configuration to `server.SetupRouter`, runs HTTP server on configured port (`cfg.Port`), and manages graceful shutdown with a 10-second timeout deadline.
 
 #### `cmd/trafficgen/`
@@ -129,10 +129,10 @@ Environment variable configuration loader.
 Container auto-discovery and backend synchronization.
 
 - **`internal/discovery/discovery.go`**:
-  - **`ServiceTarget`**: Struct capturing discovered container metadata (`ID`, `Name`, `Host`, `Port`, `HostRule`, `TargetURL`, `Labels`, `Healthy`, `CreatedAt`).
+  - **`ServiceTarget`**: Struct capturing discovered container metadata (`ID`, `Name`, `Host`, `Port`, `HostRule`, `TargetURL`, `Labels`, `Healthy`, `Reachable`, `Enabled`, `DiscoveryError`, `CreatedAt`).
   - **`Provider` Interface**: Generic abstraction exposing `Name() string`, `Start(ctx context.Context) error`, `Services() ([]ServiceTarget, error)`, and `Subscribe() <-chan []ServiceTarget`. Designed to support Swarm, Nomad, Kubernetes, or gossip backends.
   - **`DockerProvider`**: Implements `Provider` using `github.com/docker/docker/client`.
-  - **`Scan(ctx)`**: Queries `/var/run/docker.sock` via `ContainerList`. Filters containers possessing the label `traffic-proxy.enable=true` and an active `traffic-proxy.rule`. Resolves container network IP addresses across attached networks and port definitions (`traffic-proxy.port` -> exposed port -> fallback `80`). Updates internal synchronized slice and publishes targets to the subscriber channel.
+  - **`Scan(ctx)`**: Queries `/var/run/docker.sock` via `ContainerList`. Scans all running containers regardless of labels. Derives `HostRule` from `traffic-proxy.rule` label or container name. Tests endpoint reachability via a 2-second TCP probe (`probeReachable`); unreachable containers remain in the catalogue with `DiscoveryError` populated. Marked `Enabled=true` for labelled containers and `Enabled=false` for raw unlabelled backends. Publishes targets to subscriber channel.
   - **`NewDockerProviderWithClient` & `SetServices`**: Test helpers enabling dependency injection of custom HTTP mock Docker clients.
 
 #### internal/metrics/
@@ -145,12 +145,22 @@ Thread-safe metrics collection and telemetry storage.
   - **`Snapshot(discoveredCount int)`**: Takes an atomic reading of all metrics, appends the snapshot into the ring buffer, and returns the snapshot instance.
 
 #### internal/proxy/
-Traffic management, concurrency throttling, and reverse proxy routing.
+Traffic management, concurrency throttling, load balancing, and reverse proxy routing.
 
+- **`internal/proxy/balancer.go`**:
+  - **`Balancer` Interface**: Core contract exposing `Pick(backends []*Backend, clientIP string) *Backend`.
+  - **Load Balancing Algorithms**:
+    - **`RoundRobin`**: Atomic cyclic counter across healthy replicas (default).
+    - **`LeastConn`**: Selects replica with lowest active in-flight connection count.
+    - **`Random`**: Uniform pseudo-random distribution.
+    - **`IPHash`**: FNV-1a client IP hashing for deterministic session stickiness.
+  - **`Backend`**: Encapsulates upstream target URL, reverse proxy instance, active connection atomic gauge, and health state.
+  - **`NewBalancer(algorithm)`**: Factory initializing balancers from `traffic-proxy.balance` labels.
 - **`internal/proxy/proxy.go`**:
   - **`Config`**: Defines `MaxConcurrentRequests` (default: 1000) and `QueueTimeout` (default: 5s).
-  - **`Router`**: Primary traffic routing engine containing a weighted semaphore (`*semaphore.Weighted`), metrics collector reference, read-write mutex, and a dynamic map of `*httputil.ReverseProxy` keyed by normalized hostname.
-  - **`RegisterBackend(hostRule, targetURL)` & `UpdateBackends(routes)`**: Registers and hot-reloads backend proxy instances. Configures an optimized HTTP transport with persistent connection pooling (`MaxIdleConns: 100`, `MaxIdleConnsPerHost: 10`, `IdleConnTimeout: 90s`).
+  - **`BackendPool`**: Manages replica groups of `*Backend` instances associated with a host rule and an active `Balancer`.
+  - **`Router`**: Primary traffic routing engine containing a weighted semaphore (`*semaphore.Weighted`), metrics collector reference, read-write mutex, and a map of `*BackendPool` keyed by normalized hostname.
+  - **`RegisterBackend(hostRule, targetURL)` & `UpdateBackends(targets)`**: Registers single backends (accumulating into pools) and synchronizes multi-replica discovery target pools.
   - **`ServeHTTP(w, req)`**:
     1. Increments `TotalRequests` counter.
     2. Enqueues the request into the semaphore with a timeout context (`QueueTimeout`).
@@ -158,8 +168,10 @@ Traffic management, concurrency throttling, and reverse proxy routing.
     4. If the queue times out before acquiring a slot, replies with HTTP `503 Service Unavailable`.
     5. Acquires semaphore slot and increments `ActiveConcurrency`. Releases slot upon completion.
     6. Normalizes `req.Host` (stripping port and converting to lowercase).
-    7. Looks up reverse proxy backend. If not found, returns HTTP `502 Bad Gateway`.
-    8. Forwards request via `httputil.ReverseProxy.ServeHTTP`.
+    7. Looks up `BackendPool`. If missing or empty, replies with HTTP `502 Bad Gateway`.
+    8. Invokes `pool.Pick(clientIP)` to select a healthy replica.
+    9. Atomically increments and decrements the selected backend's `ActiveConns`.
+    10. Forwards request via `backend.Proxy.ServeHTTP(w, req)`.
   - **`NormalizeHost(host)`**: Exported helper utility extracting hostnames from host/port pairs and returning lowercase strings.
 
 #### internal/server/
@@ -312,8 +324,8 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
 | Go File | Lifecycle Role & Executed Logic |
 | :--- | :--- |
 | **`internal/discovery/discovery.go`** | **Container Polling & Inspection**: `DockerProvider.Start(ctx)` initiates a background loop polling `/var/run/docker.sock` every `cfg.DockerPollInterval` (default 5s). Its internal `scan()` method queries `ContainerList`, selects containers with `traffic-proxy.enable=true` and valid `traffic-proxy.rule`, resolves private IPs from attached bridge networks, parses target ports (`traffic-proxy.port` or first exposed port), constructs `ServiceTarget` records, and pushes updated target slices to `eventsChan`. |
-| **`cmd/proxy/main.go`** | **Discovery Event Consumer**: A long-running goroutine reads from `dockerProvider.Subscribe()`. For each target list received, it filters healthy targets, maps hostname rules to target backend `*url.URL` instances, and pushes the map into `router.UpdateBackends(routes)`. |
-| **`internal/proxy/proxy.go`** | **Hot Route Swapping**: In `router.UpdateBackends(routes)`, acquiring a write lock (`r.mu.Lock()`) creates fresh `httputil.ReverseProxy` instances configured with persistent HTTP connection pooling (`MaxIdleConns: 100`, `IdleConnTimeout: 90s`) and replaces `r.backends`. Running proxy instances are hot-reloaded without downtime or dropped in-flight requests. |
+| **`cmd/proxy/main.go`** | **Discovery Event Consumer**: A long-running goroutine reads from `dockerProvider.Subscribe()`. For each target list received, it pushes the slice into `router.UpdateBackends(targets)`. |
+| **`internal/proxy/proxy.go`** | **Multi-Replica Hot Swapping**: In `router.UpdateBackends(targets)`, acquiring a write lock (`r.mu.Lock()`) groups targets by hostname rule, instantiates `*Backend` instances with persistent HTTP connection pooling (`MaxIdleConns: 100`, `IdleConnTimeout: 90s`), configures the selected load balancer algorithm (`RoundRobin`, `LeastConn`, `Random`, `IPHash`), and replaces `r.pools`. In-flight requests continue uninterrupted. |
 
 ---
 
@@ -323,7 +335,7 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
 | :--- | :--- |
 | **`internal/server/server.go`** | **Request Ingestion & Route Matching**: Chi receives incoming HTTP requests. If the request matches `/static/*` or `/`, it is served immediately from embedded memory. All other traffic falls through to the catch-all `r.NotFound(proxyRouter.ServeHTTP)`. |
 | **`internal/metrics/metrics.go`** | **Atomic Gauge Tracking**: At the very start of request handling, `r.metrics.TotalRequests.Add(1)` atomically increments the cumulative request counter with zero lock contention. |
-| **`internal/proxy/proxy.go`** | **Concurrency Queue & Timeout Throttling**: <br>1. Increments `QueuedRequests.Add(1)`.<br>2. Invokes `r.sem.Acquire(ctx, 1)` with a 3-second timeout context (`QueueTimeout`).<br>3. Decrements `QueuedRequests.Add(-1)` upon exit.<br>4. If timeout expires before acquiring a slot, replies with **`503 Service Unavailable`** to protect backends from cascading collapse.<br>5. Upon slot acquisition, increments `ActiveConcurrency.Add(1)` and defers both `ActiveConcurrency.Add(-1)` and `sem.Release(1)`.<br>6. Normalizes `req.Host` via `normalizeHost(req.Host)` (stripping port and lowercase conversion).<br>7. Queries `r.backends[cleanHost]` under read lock (`r.mu.RLock()`). If missing, replies with **`502 Bad Gateway`**.<br>8. Forwards the request downstream via `proxy.ServeHTTP(w, req)` through the pooled connection. |
+| **`internal/proxy/proxy.go`** | **Concurrency Queue & Load Balancing Forwarding**: <br>1. Increments `QueuedRequests.Add(1)`.<br>2. Invokes `r.sem.Acquire(ctx, 1)` with a configured timeout context (`QueueTimeout`).<br>3. Decrements `QueuedRequests.Add(-1)` upon exit.<br>4. If timeout expires before acquiring a slot, replies with **`503 Service Unavailable`** to protect backends from cascading collapse.<br>5. Upon slot acquisition, increments `ActiveConcurrency.Add(1)` and defers both `ActiveConcurrency.Add(-1)` and `sem.Release(1)`.<br>6. Normalizes `req.Host` via `NormalizeHost(req.Host)` (stripping port and lowercase conversion).<br>7. Queries `r.pools[cleanHost]` under read lock (`r.mu.RLock()`). If missing or empty, replies with **`502 Bad Gateway`**.<br>8. Selects a replica via `pool.Pick(clientIP)` according to the pool's configured load balancing algorithm.<br>9. Atomically increments and decrements the selected backend's `ActiveConns`.<br>10. Forwards the request downstream via `backend.Proxy.ServeHTTP(w, req)` through the pooled connection. |
 
 ---
 
@@ -349,9 +361,10 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
 | Go File | Lifecycle Role & Executed Logic |
 | :--- | :--- |
 | **`test/unit/config_test.go`** | **Config Unit Tests**: Verifies environment variable override loading, invalid format handling, fallback defaults, and log level parsing. |
-| **`test/unit/discovery_test.go`** | **Discovery Unit Tests**: Mocks the Docker daemon using `httptest.Server` responding with synthetic container JSON payloads. Tests container label filtering, IP address resolution across networks, fallback container port selection, healthy/exited status mapping, service listing, and cancellation handling in `Start()`. |
+| **`test/unit/discovery_test.go`** | **Discovery Unit Tests**: Mocks the Docker daemon using `httptest.Server` responding with synthetic container JSON payloads. Tests all-container scanning, IP address resolution, TCP probe reachability mapping, `Enabled`/`Reachable` flags, fallback container port selection, healthy/exited status mapping, service listing, and cancellation handling in `Start()`. |
+| **`test/unit/balancer_test.go`** | **Balancer Unit Tests**: Isolated correctness verification for `RoundRobin`, `LeastConn`, `Random`, and `IPHash` algorithms, algorithm string parsing, empty target slice safety, and deterministic hash distribution. |
 | **`test/unit/metrics_test.go`** | **Metrics Unit Tests**: Verifies `TelemetryRingBuffer` initialization, push behavior, bitwise wrap-around at capacity (1024), thread-safe concurrent writes, and `Collector` atomic counter increments. |
-| **`test/unit/proxy_test.go`** | **Proxy Unit Tests**: Uses `httptest.Server` backends to verify reverse proxy routing, host header normalization, dynamic backend map replacement (`UpdateBackends`), default config fallbacks, and semaphore queue exhaustion timeouts returning 503. |
+| **`test/unit/proxy_test.go`** | **Proxy Unit Tests**: Uses `httptest.Server` backends to verify reverse proxy routing, host header normalization, multi-replica pool creation, dynamic discovery target replacement (`UpdateBackends`), round-robin and IP-hash distribution across replicas, unhealthy backend eviction, default config fallbacks, and semaphore queue exhaustion timeouts returning 503. |
 | **`test/unit/server_test.go`** | **Server Unit Tests**: Verifies Chi HTTP router endpoints (`/`, `/static/*`, unmatched fallback routing) and static file embedding. |
 
 ---
@@ -365,13 +378,15 @@ This section outlines how TrafficProxy operates from startup to shutdown, correl
 | **`internal/config/config.go`** | Environment variable loader & default validator | `cmd/proxy/main.go`, `test/unit/config_test.go` | `os.Getenv`, `log/slog` |
 | **`internal/discovery/discovery.go`** | Docker socket scanner & container label parser | `cmd/proxy/main.go`, `test/unit/discovery_test.go` | `github.com/docker/docker/client` |
 | **`internal/metrics/metrics.go`** | Lock-free ring buffer & atomic performance counters | `internal/proxy`, `internal/server`, `test/unit/metrics_test.go` | `sync/atomic`, `sync.RWMutex` |
-| **`internal/proxy/proxy.go`** | Semaphore concurrency control & reverse proxy routing | `internal/server/server.go`, `test/unit/proxy_test.go` | `golang.org/x/sync/semaphore`, `net/http/httputil`, `internal/metrics` |
+| **`internal/proxy/balancer.go`** | Load balancing algorithms (RoundRobin, LeastConn, Random, IPHash) | `internal/proxy/proxy.go`, `test/unit/balancer_test.go` | `sync/atomic`, `hash/fnv`, `math/rand` |
+| **`internal/proxy/proxy.go`** | Semaphore concurrency control, multi-replica pools & routing | `internal/server/server.go`, `test/unit/proxy_test.go` | `golang.org/x/sync/semaphore`, `net/http/httputil`, `internal/metrics`, `internal/discovery` |
 | **`internal/server/server.go`** | Chi HTTP routing & static asset file serving | `cmd/proxy/main.go`, `test/unit/server_test.go` | `github.com/go-chi/chi/v5`, `ui.Assets`, `internal/metrics`, `internal/proxy`, `internal/discovery` |
 | **`ui/embed.go`** | Embedded static asset filesystem bundle | `internal/server/server.go` | `embed.FS` |
 | **`test/unit/config_test.go`** | Unit test suite for runtime configuration | `go test ./test/unit/...` | `internal/config` |
 | **`test/unit/discovery_test.go`**| Unit test suite for Docker discovery | `go test ./test/unit/...` | `internal/discovery`, Docker API types |
+| **`test/unit/balancer_test.go`** | Unit test suite for load balancing algorithms | `go test ./test/unit/...` | `internal/proxy` |
 | **`test/unit/metrics_test.go`**  | Unit test suite for telemetry & ring buffer | `go test ./test/unit/...` | `internal/metrics` |
-| **`test/unit/proxy_test.go`**    | Unit test suite for traffic queuing & routing | `go test ./test/unit/...` | `internal/proxy`, `internal/metrics` |
+| **`test/unit/proxy_test.go`**    | Unit test suite for traffic queuing & routing | `go test ./test/unit/...` | `internal/proxy`, `internal/metrics`, `internal/discovery` |
 | **`test/unit/server_test.go`**   | Unit test suite for HTTP server & static routes | `go test ./test/unit/...` | `internal/server`, `internal/metrics`, `internal/proxy` |
 
 ---
@@ -520,7 +535,7 @@ select {
 case <-ctx.Done():
     return // The app is shutting down, exit immediately!
 case targets := <-sub:
-    router.UpdateBackends(routes) // New containers found! Update proxy routes.
+    router.UpdateBackends(targets) // New containers found! Update proxy routes.
 }
 ```
 

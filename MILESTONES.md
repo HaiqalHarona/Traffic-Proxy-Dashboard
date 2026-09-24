@@ -32,16 +32,20 @@ All baseline architecture components have been systematically audited against th
 **Objective**: Transition from single-host mapping to a distributed reverse proxy supporting multi-replica services and fine-grained URL routing.
 
 ### 1.1 Multi-Replica Load Balancing
-- [ ] **Feature**: Support multiple container backends sharing the same `traffic-proxy.rule` hostname.
-- **Implementation Plan**:
-  - Replace `map[string]*httputil.ReverseProxy` in `internal/proxy/proxy.go` with a `BackendPool` structure.
-  - Implement load balancing algorithms selectable via label `traffic-proxy.balance`:
-    - `round-robin` (default): Atomic cyclic index selection.
-    - `least-conn`: Forward to the upstream with the lowest active semaphore counter.
-    - `ip-hash`: Consistent hashing on `req.RemoteAddr` for session stickiness.
+- [x] **Feature**: Support multiple container backends sharing the same `traffic-proxy.rule` hostname.
+- **Implementation Evidence**:
+  - Replaced single-host `map[string]*httputil.ReverseProxy` with `BackendPool` in [`internal/proxy/proxy.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go).
+  - Implemented 4 load balancing algorithms in [`internal/proxy/balancer.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/balancer.go):
+    - `round-robin` (default): Atomic cyclic index selection across healthy replicas.
+    - `least-conn`: Selects backend with lowest atomic in-flight connection counter.
+    - `ip-hash`: FNV-1a hash of client IP for sticky session routing.
     - `random`: Uniform pseudo-random distribution.
-- **Target Files**: `internal/proxy/balancer.go`, `internal/proxy/proxy.go`.
-- **Status**: **Pending** (Currently single backend per host rule in `internal/proxy/proxy.go`).
+  - Added label `traffic-proxy.balance` parsing in `NewBalancer`.
+  - Upgraded [`internal/discovery/discovery.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go) to catalogue all containers, probe reachability via TCP, and flag `Reachable`/`Enabled`/`DiscoveryError`.
+  - Updated [`cmd/proxy/main.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/cmd/proxy/main.go) to pass raw target slices to `router.UpdateBackends(targets)`.
+  - Comprehensive unit testing: [`test/unit/balancer_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/balancer_test.go) and [`test/unit/proxy_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go).
+- **Target Files**: `internal/proxy/balancer.go`, `internal/proxy/proxy.go`, `internal/discovery/discovery.go`, `cmd/proxy/main.go`.
+- **Status**: **Completed**.
 
 ### 1.2 Path-Based Routing & Path Rewriting
 - [ ] **Feature**: Route requests based on URL path prefixes and rewrite paths before forwarding.
@@ -256,7 +260,7 @@ All baseline architecture components have been systematically audited against th
 | Milestone | Key Features | Status | Priority | Estimated Complexity | Core Packages |
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | **Baseline Architecture** | Single-host proxy, Semaphore queue, Docker discovery, Embedded UI, Dev Controls | **Completed** | Foundation | - | `internal/*`, `ui/` |
-| **M1: Load Balancing & Routing** | Multi-replica pools, Round-Robin, Path matching, WebSocket | **Pending** | **P0 (Immediate)** | Medium | `internal/proxy` |
+| **M1: Load Balancing & Routing** | Multi-replica pools, Round-Robin, Path matching, WebSocket | **In Progress (1.1 Done)** | **P0 (Immediate)** | Medium | `internal/proxy` |
 | **M2: TLS & Security** | Let's Encrypt ACME, Custom certs, HTTPS redirect, Rate limiting | **Pending** | **P0 (Immediate)** | High | `internal/server`, `internal/proxy` |
 | **M3: Health Checks & Resiliency**| Active HTTP probes, Circuit Breakers, Safe retries | **Pending** | **P1 (High)** | Medium | `internal/discovery`, `internal/proxy` |
 | **M4: Event-Driven Discovery** | Real-time Docker events, File/Static provider, Swarm/K8s | **Pending** | **P1 (High)** | Medium | `internal/discovery` |
