@@ -79,16 +79,16 @@
 
         <!-- Navigation Tabs (Widget Control Bar) -->
         <div class="max-w-[1520px] mx-auto px-3 sm:px-5 lg:px-6 flex space-x-1 overflow-x-auto text-[11px] font-mono border-t border-[#1d1f27] pt-0.5">
-            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn border-b-2 border-rose-500 text-white px-3.5 py-2 font-semibold tracking-wider uppercase transition">
+            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn border-b-2 border-rose-500 text-white px-3.5 py-2 font-semibold tracking-wider uppercase transition whitespace-nowrap">
                 Overview
             </button>
-            <button onclick="switchTab('routes')" id="tab-btn-routes" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3.5 py-2 font-medium tracking-wider uppercase transition">
+            <button onclick="switchTab('routes')" id="tab-btn-routes" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3.5 py-2 font-medium tracking-wider uppercase transition whitespace-nowrap">
                 Routes &amp; Discovery
             </button>
-            <button onclick="switchTab('system')" id="tab-btn-system" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3.5 py-2 font-medium tracking-wider uppercase transition">
+            <button onclick="switchTab('system')" id="tab-btn-system" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3.5 py-2 font-medium tracking-wider uppercase transition whitespace-nowrap">
                 Gateway Engine &amp; Traffic
             </button>
-            <button onclick="switchTab('devtools')" id="tab-btn-devtools" class="hidden tab-btn border-b-2 border-transparent text-amber-400 hover:text-amber-300 px-3.5 py-2 font-medium tracking-wider uppercase items-center space-x-1.5 transition">
+            <button onclick="switchTab('devtools')" id="tab-btn-devtools" class="hidden tab-btn border-b-2 border-transparent text-amber-400 hover:text-amber-300 px-3.5 py-2 font-medium tracking-wider uppercase items-center space-x-1.5 transition whitespace-nowrap">
                 <span>Dev Tools</span>
                 <span class="text-[9px] px-1.5 py-0.2 rounded-sm bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono">SANDBOX</span>
             </button>
@@ -99,7 +99,7 @@
     <main class="flex-1 max-w-[1520px] w-full mx-auto p-3 sm:p-5 lg:p-6 space-y-4">
 
         <!-- ========================================================================= -->
-        <!-- TAB 1: OVERVIEW (Replicating exact Widget Dashboard of reference.jpg)     -->
+        <!-- TAB 1: OVERVIEW (8-Widget Dashboard replicating reference.jpg)            -->
         <!-- ========================================================================= -->
         <section id="tab-overview" class="tab-content active space-y-4">
 
@@ -135,11 +135,11 @@
                 </div>
             </div>
 
-            <!-- Top Row Widgets (Grid: 5 / 4 / 3 cols) -->
+            <!-- Top Row Widgets (Grid: 5 / 4 / 3 cols on lg screens, stacked on small) -->
             <div class="grid grid-cols-12 gap-3.5">
 
                 <!-- WIDGET 1: Top-Left KPI Matrix (2x3 Grid with Live HTMX SSE OOB Targets) -->
-                <div class="col-span-12 lg:col-span-5 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                <div class="col-span-12 lg:col-span-5 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                     <!-- Widget Header -->
                     <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                         <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">KPI</span>
@@ -150,45 +150,45 @@
                     <!-- 2x3 Matrix Grid Container (HTMX SSE Connected) -->
                     <div hx-ext="sse" sse-connect="/api/events" sse-swap="metrics" class="grid grid-cols-3 divide-x divide-y divide-[#20222a] border border-[#20222a] my-3 bg-[#0e0f14]">
                         <!-- Cell 1: Total Requests (LEADS CREATED) -->
-                        <div class="p-3 text-center flex flex-col justify-center items-center">
-                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">LEADS CREATED</span>
-                            <div id="metric-total-requests" class="text-2xl sm:text-3xl font-bold font-mono text-white mt-1">424</div>
-                            <span class="text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
+                        <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">LEADS CREATED</span>
+                            <div id="metric-total-requests" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">424</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
                         </div>
 
                         <!-- Cell 2: Active Concurrency (POTENTIALS CREATED) -->
-                        <div class="p-3 text-center flex flex-col justify-center items-center">
-                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">POTENTIALS CREATED</span>
-                            <div id="metric-active-concurrency" class="text-2xl sm:text-3xl font-bold font-mono text-emerald-400 mt-1">159</div>
-                            <span class="text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
+                        <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">POTENTIALS CREATED</span>
+                            <div id="metric-active-concurrency" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">159</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
                         </div>
 
                         <!-- Cell 3: Revenue Generated (REVENUE GENERATED) -->
-                        <div class="p-3 text-center flex flex-col justify-center items-center">
-                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">REVENUE GENERATED</span>
-                            <div class="text-2xl sm:text-3xl font-bold font-mono text-white mt-1">$3,630,000</div>
-                            <span class="text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
+                        <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">REVENUE GENERATED</span>
+                            <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-1 truncate w-full">$3,630,000</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
                         </div>
 
                         <!-- Cell 4: Discovered Services (SALES WON) -->
-                        <div class="p-3 text-center flex flex-col justify-center items-center">
-                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">SALES WON</span>
-                            <div id="metric-discovered-services" class="text-2xl sm:text-3xl font-bold font-mono text-white mt-1">76</div>
-                            <span class="text-[11px] font-mono text-rose-400 font-semibold mt-0.5">6% &darr;</span>
+                        <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">SALES WON</span>
+                            <div id="metric-discovered-services" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">76</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-rose-400 font-semibold mt-0.5">6% &darr;</span>
                         </div>
 
                         <!-- Cell 5: Queued Requests (CREATING DEALS) -->
-                        <div class="p-3 text-center flex flex-col justify-center items-center">
-                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">CREATING DEALS</span>
-                            <div id="metric-queued-requests" class="text-2xl sm:text-3xl font-bold font-mono text-amber-400 mt-1">159</div>
-                            <span class="text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
+                        <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">CREATING DEALS</span>
+                            <div id="metric-queued-requests" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-amber-400 mt-1 truncate w-full">159</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
                         </div>
 
                         <!-- Cell 6: Progressing Deals (PROGRESSING DEALS) -->
-                        <div class="p-3 text-center flex flex-col justify-center items-center">
-                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">PROGRESSING DEALS</span>
-                            <div class="text-2xl sm:text-3xl font-bold font-mono text-white mt-1">159</div>
-                            <span class="text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
+                        <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">PROGRESSING DEALS</span>
+                            <div class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">159</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
                         </div>
                     </div>
 
@@ -199,7 +199,7 @@
                 </div>
 
                 <!-- WIDGET 2: Top-Middle Target & Leaderboard with Radial Donut Gauge -->
-                <div class="col-span-12 lg:col-span-4 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                <div class="col-span-12 lg:col-span-4 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                     <!-- Widget Header -->
                     <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                         <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
@@ -207,10 +207,10 @@
                         <span class="text-[10px] font-mono text-zinc-500">MTH</span>
                     </div>
 
-                    <!-- Content Layout: Left Ratio & Leaderboard, Right Donut -->
-                    <div class="flex items-center justify-between my-3 gap-3">
+                    <!-- Content Layout: Left Ratio & Leaderboard, Right Donut (Responsive stack on xs) -->
+                    <div class="flex flex-col sm:flex-row items-center justify-between my-3 gap-3">
                         <!-- Left Side: Big Ratio and Mini Bars -->
-                        <div class="flex-1 space-y-3">
+                        <div class="flex-1 w-full space-y-2.5">
                             <div class="text-left font-mono">
                                 <span class="text-2xl sm:text-3xl font-extrabold text-white">128</span>
                                 <span class="text-zinc-500 text-lg font-normal"> / 300</span>
@@ -246,16 +246,14 @@
                         </div>
 
                         <!-- Right Side: Circular Donut Gauge -->
-                        <div class="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
-                            <svg class="w-28 h-28 gauge-svg" viewBox="0 0 100 100">
-                                <!-- Background Track -->
+                        <div class="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-24 h-24 sm:w-28 sm:h-28 gauge-svg" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                <!-- Dynamic Arc: 42% of 238.76 = 100.28 filled, 138.48 offset -->
                                 <circle id="gauge-concurrency-circle" cx="50" cy="50" r="38" stroke="#f43f5e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="138.48" stroke-linecap="round" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                                 <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                <span id="gauge-concurrency-pct" class="text-xl font-extrabold font-mono text-white mt-0.5">42%</span>
+                                <span id="gauge-concurrency-pct" class="text-lg sm:text-xl font-extrabold font-mono text-white mt-0.5">42%</span>
                             </div>
                         </div>
                     </div>
@@ -267,7 +265,7 @@
                 </div>
 
                 <!-- WIDGET 3: Top-Right Target Radial Donut Gauge -->
-                <div class="col-span-12 lg:col-span-3 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                <div class="col-span-12 lg:col-span-3 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                     <!-- Widget Header -->
                     <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                         <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
@@ -275,17 +273,15 @@
                     </div>
 
                     <!-- Content Layout: Centered Donut Gauge -->
-                    <div class="my-4 flex items-center justify-center">
-                        <div class="relative w-32 h-32 flex items-center justify-center">
-                            <svg class="w-32 h-32 gauge-svg" viewBox="0 0 100 100">
-                                <!-- Background Track -->
+                    <div class="my-3 sm:my-4 flex items-center justify-center">
+                        <div class="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
+                            <svg class="w-28 h-28 sm:w-32 sm:h-32 gauge-svg" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                <!-- Dynamic Arc: 20% of 238.76 = 47.75 filled, 191 offset -->
                                 <circle cx="50" cy="50" r="38" stroke="#f43f5e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="191" stroke-linecap="round" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                                 <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                <span class="text-2xl font-extrabold font-mono text-white mt-0.5">20%</span>
+                                <span class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">20%</span>
                             </div>
                         </div>
                     </div>
@@ -299,17 +295,17 @@
             </div>
 
 
-            <!-- Middle & Bottom Section (Grid: 9 cols left stack + 3 cols right vertical widget) -->
-            <div class="grid grid-cols-12 gap-3.5">
+            <!-- Middle & Bottom Section (Grid: 9 cols left stack + 3 cols right vertical widget on lg screens) -->
+            <div class="grid grid-cols-12 gap-3.5 items-stretch">
 
-                <!-- LEFT STACK (Col Span 9 on large screens) -->
-                <div class="col-span-12 lg:col-span-9 space-y-3.5">
+                <!-- LEFT STACK (Col Span 12 on mobile/tablet, 9 on desktop) -->
+                <div class="col-span-12 lg:col-span-9 flex flex-col justify-between space-y-3.5">
 
-                    <!-- Middle Row: Wide Chart Widget (6 cols) & Yellow Donut Gauge (3 cols) -->
+                    <!-- Middle Row: Wide Chart Widget (8 cols on md+) & Yellow Donut Gauge (4 cols on md+) -->
                     <div class="grid grid-cols-12 gap-3.5">
 
                         <!-- WIDGET 4: KPI Hero Metric + Wide Spline Chart -->
-                        <div class="col-span-12 md:col-span-8 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                        <div class="col-span-12 md:col-span-8 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                                 <div class="flex items-center space-x-3">
@@ -323,21 +319,21 @@
                             </div>
 
                             <!-- Content Split: Left Hero Number, Right Chart -->
-                            <div class="flex flex-col sm:flex-row items-center my-2 gap-4">
+                            <div class="flex flex-col sm:flex-row items-center my-2 gap-3 sm:gap-4">
                                 <!-- Left Metric Callout -->
-                                <div class="w-full sm:w-28 text-center sm:text-left flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-[#20222a] pr-2 pb-2 sm:pb-0">
-                                    <div id="chart-hero-active" class="text-4xl sm:text-5xl font-extrabold font-mono text-white">87</div>
+                                <div class="w-full sm:w-28 text-center sm:text-left flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-[#20222a] pr-2 pb-2 sm:pb-0 flex-shrink-0">
+                                    <div id="chart-hero-active" class="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-mono text-white">87</div>
                                     <div class="flex items-center justify-center sm:justify-start space-x-1 text-xs font-mono text-rose-400 font-bold mt-1">
                                         <span>8%</span>
                                         <span>&darr;</span>
                                     </div>
-                                    <div class="text-[10px] font-mono text-zinc-400 mt-2">
+                                    <div class="text-[10px] font-mono text-zinc-400 mt-1.5">
                                         Company - This Quarter
                                     </div>
                                 </div>
 
                                 <!-- Right Chart.js Canvas Container -->
-                                <div class="flex-1 w-full h-44 relative">
+                                <div class="flex-1 w-full h-40 sm:h-44 relative">
                                     <canvas id="trafficChart"></canvas>
                                 </div>
                             </div>
@@ -348,7 +344,7 @@
                         </div>
 
                         <!-- WIDGET 5: Target Radial Donut Gauge (Yellow/Amber Arc) -->
-                        <div class="col-span-12 md:col-span-4 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                        <div class="col-span-12 md:col-span-4 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                                 <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
@@ -356,17 +352,15 @@
                             </div>
 
                             <!-- Content Layout: Centered Donut Gauge -->
-                            <div class="my-4 flex items-center justify-center">
-                                <div class="relative w-32 h-32 flex items-center justify-center">
-                                    <svg class="w-32 h-32 gauge-svg" viewBox="0 0 100 100">
-                                        <!-- Background Track -->
+                            <div class="my-3 sm:my-4 flex items-center justify-center">
+                                <div class="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
+                                    <svg class="w-28 h-28 sm:w-32 sm:h-32 gauge-svg" viewBox="0 0 100 100">
                                         <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                        <!-- Dynamic Arc: 31% of 238.76 = 74 filled, 164.7 offset -->
                                         <circle cx="50" cy="50" r="38" stroke="#eab308" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="164.74" stroke-linecap="round" />
                                     </svg>
                                     <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                                         <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                        <span class="text-2xl font-extrabold font-mono text-white mt-0.5">31%</span>
+                                        <span class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">31%</span>
                                     </div>
                                 </div>
                             </div>
@@ -383,7 +377,7 @@
                     <div class="grid grid-cols-12 gap-3.5">
 
                         <!-- WIDGET 7: Target Ratio, Leaderboard Bars & White Radial Donut -->
-                        <div class="col-span-12 md:col-span-6 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                        <div class="col-span-12 md:col-span-6 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                                 <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
@@ -391,10 +385,10 @@
                                 <span class="text-[10px] font-mono text-zinc-500">QTR</span>
                             </div>
 
-                            <!-- Content Layout: Left Ratio & Leaderboard, Right Donut -->
-                            <div class="flex items-center justify-between my-3 gap-3">
+                            <!-- Content Layout: Left Ratio & Leaderboard, Right Donut (Responsive stack on xs) -->
+                            <div class="flex flex-col sm:flex-row items-center justify-between my-3 gap-3">
                                 <!-- Left Side: Big Ratio and Mini Bars -->
-                                <div class="flex-1 space-y-2.5">
+                                <div class="flex-1 w-full space-y-2">
                                     <div class="text-left font-mono">
                                         <span class="text-2xl sm:text-3xl font-extrabold text-white">424</span>
                                         <span class="text-zinc-500 text-lg font-normal"> / 450</span>
@@ -430,16 +424,14 @@
                                 </div>
 
                                 <!-- Right Side: Circular White Donut Gauge -->
-                                <div class="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-28 h-28 gauge-svg" viewBox="0 0 100 100">
-                                        <!-- Background Track -->
+                                <div class="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-24 h-24 sm:w-28 sm:h-28 gauge-svg" viewBox="0 0 100 100">
                                         <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                        <!-- Dynamic Arc: 94% of 238.76 = 224.43 filled, 14.33 offset (White Arc) -->
                                         <circle cx="50" cy="50" r="38" stroke="#ffffff" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="14.33" stroke-linecap="round" />
                                     </svg>
                                     <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                                         <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                        <span class="text-xl font-extrabold font-mono text-white mt-0.5">94%</span>
+                                        <span class="text-lg sm:text-xl font-extrabold font-mono text-white mt-0.5">94%</span>
                                     </div>
                                 </div>
                             </div>
@@ -451,7 +443,7 @@
                         </div>
 
                         <!-- WIDGET 8: Bottom-Right KPI Matrix (2x3 Grid) -->
-                        <div class="col-span-12 md:col-span-6 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                        <div class="col-span-12 md:col-span-6 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                                 <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">KPI</span>
@@ -462,44 +454,44 @@
                             <!-- 2x3 Matrix Grid Container -->
                             <div class="grid grid-cols-3 divide-x divide-y divide-[#20222a] border border-[#20222a] my-2 bg-[#0e0f14]">
                                 <!-- Cell 1 -->
-                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
-                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">LEADS CREATED</span>
-                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">432</div>
+                                <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">LEADS CREATED</span>
+                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">432</div>
                                     <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">1% &darr;</span>
                                 </div>
 
                                 <!-- Cell 2 -->
-                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
-                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">POTENTIALS CREATED</span>
-                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">159</div>
+                                <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">POTENTIALS CREATED</span>
+                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">159</div>
                                     <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
                                 </div>
 
                                 <!-- Cell 3 -->
-                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
-                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">REVENUE GENERATED</span>
-                                    <div class="text-lg sm:text-xl font-bold font-mono text-white mt-0.5">$3,585,000</div>
+                                <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">REVENUE GENERATED</span>
+                                    <div class="text-sm sm:text-lg lg:text-xl font-bold font-mono text-white mt-0.5 truncate w-full">$3,585,000</div>
                                     <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">5% &darr;</span>
                                 </div>
 
                                 <!-- Cell 4 -->
-                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
-                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">SALES WON</span>
-                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">75</div>
+                                <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">SALES WON</span>
+                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">75</div>
                                     <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">10% &darr;</span>
                                 </div>
 
                                 <!-- Cell 5 -->
-                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
-                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">CREATING DEALS</span>
-                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">159</div>
+                                <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">CREATING DEALS</span>
+                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">159</div>
                                     <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
                                 </div>
 
                                 <!-- Cell 6 -->
-                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
-                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">PROGRESSING DEALS</span>
-                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">159</div>
+                                <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">PROGRESSING DEALS</span>
+                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">159</div>
                                     <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
                                 </div>
                             </div>
@@ -515,8 +507,8 @@
                 </div>
 
 
-                <!-- RIGHT STACK (Col Span 3 on large screens): WIDGET 6 (Contest / Countdown / Leaderboard) -->
-                <div class="col-span-12 lg:col-span-3 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                <!-- RIGHT STACK (Col Span 12 on mobile/tablet, 3 on desktop): WIDGET 6 (Contest / Countdown / Leaderboard) -->
+                <div class="col-span-12 lg:col-span-3 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md h-full">
                     <!-- Widget Header -->
                     <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                         <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">CONTEST</span>
@@ -525,16 +517,14 @@
 
                     <!-- Top Neon Green Radial Donut Gauge (100% Duration Past) -->
                     <div class="my-3 flex items-center justify-center">
-                        <div class="relative w-32 h-32 flex items-center justify-center">
-                            <svg class="w-32 h-32 gauge-svg" viewBox="0 0 100 100">
-                                <!-- Background Track -->
+                        <div class="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
+                            <svg class="w-28 h-28 sm:w-32 sm:h-32 gauge-svg" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                <!-- Neon Green Arc: 100% circumference (238.76 filled, 0 offset) -->
                                 <circle cx="50" cy="50" r="38" stroke="#22c55e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="0" stroke-linecap="round" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                                 <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Duration Past</span>
-                                <span class="text-2xl font-extrabold font-mono text-white mt-0.5">100%</span>
+                                <span class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">100%</span>
                             </div>
                         </div>
                     </div>
@@ -542,7 +532,7 @@
                     <!-- Digital Countdown Timer Display -->
                     <div class="bg-[#0b0c10] border border-[#242631] rounded-sm p-2 my-2 text-center font-mono">
                         <div class="text-[9px] text-zinc-400 uppercase tracking-widest font-semibold">TIME REMAINING</div>
-                        <div class="text-xs font-bold text-white tracking-widest mt-1 flex justify-center items-center space-x-2">
+                        <div class="text-[11px] sm:text-xs font-bold text-white tracking-widest mt-1 flex justify-center items-center space-x-1.5 sm:space-x-2">
                             <span class="text-center"><b id="time-days" class="text-zinc-200">0</b><span class="text-[8px] text-zinc-500 block">DAYS</span></span>
                             <span class="text-zinc-600">:</span>
                             <span class="text-center"><b id="time-hrs" class="text-zinc-200">0</b><span class="text-[8px] text-zinc-500 block">HRS</span></span>
@@ -554,7 +544,7 @@
                     </div>
 
                     <!-- Leaderboard Table with Avatars & Rankings -->
-                    <div class="my-2 space-y-2 font-mono">
+                    <div class="my-2 space-y-2 font-mono flex-1 flex flex-col justify-center">
                         <div class="text-[10px] text-zinc-400 font-bold uppercase tracking-wider pb-1 border-b border-[#20222a]">
                             LEADERBOARD
                         </div>
@@ -565,9 +555,9 @@
                                 <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-600 to-amber-300 flex items-center justify-center text-[10px] font-bold text-black border border-amber-300">
                                     M
                                 </div>
-                                <span class="text-zinc-200 font-medium">Morris</span>
+                                <span class="text-zinc-200 font-medium truncate">Morris</span>
                             </div>
-                            <div class="flex items-center space-x-3">
+                            <div class="flex items-center space-x-2 sm:space-x-3">
                                 <span class="text-zinc-400 font-semibold">1568</span>
                                 <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">1st</span>
                             </div>
@@ -579,9 +569,9 @@
                                 <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-rose-600 to-rose-300 flex items-center justify-center text-[10px] font-bold text-white border border-rose-300">
                                     A
                                 </div>
-                                <span class="text-zinc-200 font-medium">Allene</span>
+                                <span class="text-zinc-200 font-medium truncate">Allene</span>
                             </div>
-                            <div class="flex items-center space-x-3">
+                            <div class="flex items-center space-x-2 sm:space-x-3">
                                 <span class="text-zinc-400 font-semibold">166</span>
                                 <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">2nd</span>
                             </div>
@@ -593,9 +583,9 @@
                                 <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-sky-600 to-sky-300 flex items-center justify-center text-[10px] font-bold text-white border border-sky-300">
                                     D
                                 </div>
-                                <span class="text-zinc-200 font-medium">Don</span>
+                                <span class="text-zinc-200 font-medium truncate">Don</span>
                             </div>
-                            <div class="flex items-center space-x-3">
+                            <div class="flex items-center space-x-2 sm:space-x-3">
                                 <span class="text-zinc-400 font-semibold">151</span>
                                 <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">3rd</span>
                             </div>
@@ -607,9 +597,9 @@
                                 <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-600 to-emerald-300 flex items-center justify-center text-[10px] font-bold text-black border border-emerald-300">
                                     S
                                 </div>
-                                <span class="text-zinc-200 font-medium">Sara</span>
+                                <span class="text-zinc-200 font-medium truncate">Sara</span>
                             </div>
-                            <div class="flex items-center space-x-3">
+                            <div class="flex items-center space-x-2 sm:space-x-3">
                                 <span class="text-zinc-400 font-semibold">146</span>
                                 <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">4th</span>
                             </div>
@@ -628,12 +618,12 @@
 
 
         <!-- ========================================================================= -->
-        <!-- TAB 2: ROUTES & DISCOVERY (Widget-Themed)                                  -->
+        <!-- TAB 2: ROUTES & DISCOVERY (Widget-Themed, Responsive)                     -->
         <!-- ========================================================================= -->
         <section id="tab-routes" class="tab-content space-y-4">
 
             <!-- Control Bar Widget -->
-            <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md font-mono">
+            <div class="bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md font-mono">
                 <div>
                     <div class="flex items-center space-x-2">
                         <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">ROUTE</span>
@@ -641,16 +631,16 @@
                     </div>
                     <p class="text-[11px] text-zinc-400 mt-0.5">Containers automatically registered via Docker Engine label inspection</p>
                 </div>
-                <div class="flex items-center space-x-2 text-xs">
-                    <input type="text" id="route-search" placeholder="Filter by host rule..." class="bg-[#0b0c10] border border-[#262833] px-3 py-1.5 rounded-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 text-xs">
-                    <button onclick="refreshMockRoutes()" class="bg-[#1b1c24] hover:bg-[#252733] text-zinc-200 px-3 py-1.5 rounded-sm border border-[#2b2e3c] transition cursor-pointer font-semibold text-xs">Scan Now</button>
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <input type="text" id="route-search" placeholder="Filter by host rule..." class="bg-[#0b0c10] border border-[#262833] px-3 py-1.5 rounded-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 text-xs w-full sm:w-auto">
+                    <button onclick="refreshMockRoutes()" class="bg-[#1b1c24] hover:bg-[#252733] text-zinc-200 px-3 py-1.5 rounded-sm border border-[#2b2e3c] transition cursor-pointer font-semibold text-xs w-full sm:w-auto">Scan Now</button>
                 </div>
             </div>
 
             <!-- Route Table Widget -->
             <div class="bg-[#121318] border border-[#262833] rounded-sm overflow-hidden shadow-md">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs font-mono">
+                    <table class="w-full text-left text-xs font-mono min-w-[640px]">
                         <thead class="bg-[#0b0c10] border-b border-[#20222a] text-zinc-400 uppercase text-[10px] tracking-wider">
                             <tr>
                                 <th class="py-3 px-4">Status</th>
@@ -755,7 +745,7 @@
 
 
         <!-- ========================================================================= -->
-        <!-- TAB 3: GATEWAY ENGINE & TRAFFIC (Widget-Themed)                           -->
+        <!-- TAB 3: GATEWAY ENGINE & TRAFFIC (Widget-Themed, Responsive)               -->
         <!-- ========================================================================= -->
         <section id="tab-system" class="tab-content space-y-4">
 
@@ -834,7 +824,7 @@
 
 
         <!-- ========================================================================= -->
-        <!-- TAB 4: DEV TOOLS (Development Mode Only, Widget-Themed)                    -->
+        <!-- TAB 4: DEV TOOLS (Development Mode Only, Widget-Themed, Responsive)       -->
         <!-- ========================================================================= -->
         <section id="tab-devtools" class="tab-content space-y-4">
 
