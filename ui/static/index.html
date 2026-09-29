@@ -15,9 +15,17 @@
             theme: {
                 extend: {
                     colors: {
+                        widget: {
+                            bg: '#121317',
+                            card: '#16171d',
+                            border: '#262832',
+                            subtle: '#1b1d24',
+                        },
                         brand: {
-                            500: '#10b981',
-                            600: '#059669',
+                            coral: '#f43f5e',
+                            emerald: '#10b981',
+                            amber: '#f59e0b',
+                            cyan: '#06b6d4',
                         }
                     },
                     fontFamily: {
@@ -29,219 +37,621 @@
         }
     </script>
     <style>
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #09090b; }
-        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #0c0d10; }
+        ::-webkit-scrollbar-thumb { background: #262832; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3a3e4d; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        .gauge-svg { transform: rotate(-90deg); }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 font-sans min-h-screen antialiased flex flex-col">
+<body class="bg-[#0b0c0f] text-zinc-100 font-sans min-h-screen antialiased flex flex-col selection:bg-rose-500/20 selection:text-white">
 
-    <!-- Top Utility Status Bar -->
-    <header class="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+    <!-- Top Utility Status Bar (High-Tech Dark Console) -->
+    <header class="border-b border-[#23252e] bg-[#101116] sticky top-0 z-50">
+        <div class="max-w-[1520px] mx-auto px-3 sm:px-5 lg:px-6 h-13 flex items-center justify-between">
             <!-- Brand & Gateway Identification -->
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-3 sm:space-x-5">
                 <div class="flex items-center space-x-2">
                     <span id="gateway-status-dot" class="w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-500/20 animate-pulse transition-all duration-300" title="Connecting to gateway..."></span>
-                    <span class="font-bold text-sm tracking-tight text-zinc-100 font-mono">SanProx</span>
-                    <span class="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono border border-zinc-700">v1.0.0</span>
-                    <span id="env-badge" class="text-xs px-2 py-0.5 rounded font-mono font-bold border uppercase tracking-wider bg-zinc-800 text-zinc-400 border-zinc-700">__SANPROX_ENVIRONMENT__</span>
+                    <span class="font-black text-sm tracking-widest text-white font-mono uppercase">SanProx</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-sm bg-[#1c1e27] text-zinc-400 font-mono border border-[#2b2e3c]">v1.0.0</span>
+                    <span id="env-badge" class="text-[10px] px-2 py-0.5 rounded-sm font-mono font-bold border uppercase tracking-wider bg-[#1c1e27] text-zinc-400 border-[#2b2e3c]">__SANPROX_ENVIRONMENT__</span>
                 </div>
-                <div class="hidden md:flex items-center space-x-2 text-xs text-zinc-400 border-l border-zinc-800 pl-4">
-                    <span>Target: <code class="text-zinc-300 font-mono">:80 / :443</code></span>
+                <div class="hidden lg:flex items-center space-x-3 text-[11px] text-zinc-400 border-l border-[#23252e] pl-4 font-mono">
+                    <span>TARGET: <code class="text-zinc-200">:80 / :443</code></span>
                     <span class="text-zinc-600">&bull;</span>
-                    <span>Socket: <code class="text-zinc-300 font-mono">/var/run/docker.sock:ro</code></span>
+                    <span>SOCKET: <code class="text-zinc-200">/var/run/docker.sock:ro</code></span>
                     <span class="text-zinc-600">&bull;</span>
-                    <span>Runtime: <code class="text-zinc-300 font-mono">scratch (UID 65534)</code></span>
+                    <span>RUNTIME: <code class="text-zinc-200">scratch (UID 65534)</code></span>
                 </div>
             </div>
 
-            <!-- Telemetry Status (Clean, No Top-Right Button) -->
-            <div class="flex items-center space-x-3 text-xs">
-                <div class="flex items-center space-x-2 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded font-mono">
+            <!-- Telemetry Status Stream Indicator -->
+            <div class="flex items-center space-x-2 text-[11px] font-mono">
+                <div class="flex items-center space-x-2 bg-[#15171e] border border-[#262833] px-2.5 py-1 rounded-sm">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span class="text-zinc-300">SSE: /api/events</span>
                 </div>
             </div>
         </div>
 
-        <!-- Streamlined Navigation Tabs -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 overflow-x-auto text-xs font-mono border-t border-zinc-800/60 pt-1">
-            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn border-b-2 border-emerald-500 text-white px-3 py-2 font-medium">
+        <!-- Navigation Tabs (Widget Control Bar) -->
+        <div class="max-w-[1520px] mx-auto px-3 sm:px-5 lg:px-6 flex space-x-1 overflow-x-auto text-[11px] font-mono border-t border-[#1d1f27] pt-0.5">
+            <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn border-b-2 border-rose-500 text-white px-3.5 py-2 font-semibold tracking-wider uppercase transition">
                 Overview
             </button>
-            <button onclick="switchTab('routes')" id="tab-btn-routes" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3 py-2 font-medium">
+            <button onclick="switchTab('routes')" id="tab-btn-routes" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3.5 py-2 font-medium tracking-wider uppercase transition">
                 Routes &amp; Discovery
             </button>
-            <button onclick="switchTab('system')" id="tab-btn-system" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3 py-2 font-medium">
+            <button onclick="switchTab('system')" id="tab-btn-system" class="tab-btn border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 px-3.5 py-2 font-medium tracking-wider uppercase transition">
                 Gateway Engine &amp; Traffic
             </button>
-            <button onclick="switchTab('devtools')" id="tab-btn-devtools" class="hidden tab-btn border-b-2 border-transparent text-amber-400 hover:text-amber-300 px-3 py-2 font-medium items-center space-x-1.5">
+            <button onclick="switchTab('devtools')" id="tab-btn-devtools" class="hidden tab-btn border-b-2 border-transparent text-amber-400 hover:text-amber-300 px-3.5 py-2 font-medium tracking-wider uppercase items-center space-x-1.5 transition">
                 <span>Dev Tools</span>
-                <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono">SANDBOX</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded-sm bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono">SANDBOX</span>
             </button>
         </div>
     </header>
 
     <!-- Main Content Area -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+    <main class="flex-1 max-w-[1520px] w-full mx-auto p-3 sm:p-5 lg:p-6 space-y-4">
 
         <!-- ========================================================================= -->
-        <!-- TAB 1: OVERVIEW                                                           -->
+        <!-- TAB 1: OVERVIEW (Replicating exact Widget Dashboard of reference.jpg)     -->
         <!-- ========================================================================= -->
-        <section id="tab-overview" class="tab-content active space-y-6">
+        <section id="tab-overview" class="tab-content active space-y-4">
 
-            <!-- Development Quick Bar (Visible only in DEVELOPMENT mode, zero emojis) -->
-            <div id="dev-console-card" class="hidden bg-zinc-900/90 border border-amber-500/30 rounded p-3 text-xs font-mono">
+            <!-- Development Quick Bar (Visible in DEVELOPMENT mode) -->
+            <div id="dev-console-card" class="hidden bg-[#13141a] border border-amber-500/30 rounded-sm p-3 text-xs font-mono">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center space-x-2">
-                        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                        <span class="font-semibold text-amber-300 uppercase tracking-wide text-[11px]">Development Quick Actions:</span>
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span class="font-bold text-amber-300 uppercase tracking-widest text-[11px]">Development Quick Actions:</span>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <button id="btn-seed-traffic" onclick="runTrafficSeeder(50, 10)" class="inline-flex items-center space-x-1.5 bg-emerald-600/90 hover:bg-emerald-500 text-white px-3 py-1.5 rounded font-medium text-xs transition active:scale-95 cursor-pointer">
+                        <button id="btn-seed-traffic" onclick="runTrafficSeeder(50, 10)" class="inline-flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-sm font-semibold text-[11px] transition active:scale-95 cursor-pointer">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                             <span id="btn-seed-text">Run Seeder</span>
                         </button>
-
-                        <button id="btn-stress-queue" onclick="runStressQueue(100, 30)" class="inline-flex items-center space-x-1.5 bg-amber-600/90 hover:bg-amber-500 text-white px-3 py-1.5 rounded font-medium text-xs transition active:scale-95 cursor-pointer">
+                        <button id="btn-stress-queue" onclick="runStressQueue(100, 30)" class="inline-flex items-center space-x-1.5 bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-sm font-semibold text-[11px] transition active:scale-95 cursor-pointer">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             <span id="btn-stress-text">Saturate Queue</span>
                         </button>
-
-                        <button id="btn-reset-metrics" onclick="resetMetrics()" class="inline-flex items-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded font-medium text-xs transition active:scale-95 cursor-pointer">
+                        <button id="btn-reset-metrics" onclick="resetMetrics()" class="inline-flex items-center space-x-1.5 bg-[#1b1c24] hover:bg-[#252733] text-zinc-300 border border-[#2b2e3c] px-3 py-1.5 rounded-sm font-semibold text-[11px] transition active:scale-95 cursor-pointer">
                             <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             <span>Reset Metrics</span>
                         </button>
-
-                        <button onclick="switchTab('devtools')" class="inline-flex items-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded font-medium text-xs transition active:scale-95 cursor-pointer">
+                        <button onclick="switchTab('devtools')" class="inline-flex items-center space-x-1.5 bg-[#1b1c24] hover:bg-[#252733] text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-sm font-semibold text-[11px] transition active:scale-95 cursor-pointer">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
                             <span>Open Dev Console</span>
                         </button>
                     </div>
                 </div>
-
-                <div id="dev-status-output" class="hidden mt-2 p-2 rounded bg-zinc-950 border border-zinc-800 text-[11px] text-zinc-300 flex items-center justify-between">
+                <div id="dev-status-output" class="hidden mt-2 p-2 rounded-sm bg-[#0d0e12] border border-[#242631] text-[11px] text-zinc-300 flex items-center justify-between">
                     <span id="dev-status-text" class="text-emerald-400 font-medium">Ready</span>
                     <span id="dev-status-time" class="text-[10px] text-zinc-500"></span>
                 </div>
             </div>
 
-            <!-- Real-Time Metrics Header (HTMX SSE Connected) -->
-            <div hx-ext="sse" sse-connect="/api/events" sse-swap="metrics">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <!-- Total Requests -->
-                    <div class="bg-zinc-900 border border-zinc-800 rounded p-4">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Total Requests</span>
-                            <span class="text-[10px] text-zinc-500 font-mono">atomic.Uint64</span>
-                        </div>
-                        <div id="metric-total-requests" class="text-3xl font-bold font-mono text-white mt-2">0</div>
-                        <p class="text-[11px] text-zinc-500 mt-1">Cumulative HTTP handled</p>
+            <!-- Top Row Widgets (Grid: 5 / 4 / 3 cols) -->
+            <div class="grid grid-cols-12 gap-3.5">
+
+                <!-- WIDGET 1: Top-Left KPI Matrix (2x3 Grid with Live HTMX SSE OOB Targets) -->
+                <div class="col-span-12 lg:col-span-5 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                    <!-- Widget Header -->
+                    <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">KPI</span>
+                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">GATEWAY TELEMETRY</h2>
+                        <span class="text-[10px] font-mono text-zinc-500">LIVE</span>
                     </div>
 
-                    <!-- Active Concurrency -->
-                    <div class="bg-zinc-900 border border-zinc-800 rounded p-4">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Active Concurrency</span>
-                            <span class="text-[10px] text-emerald-500/80 font-mono">atomic.Int64</span>
+                    <!-- 2x3 Matrix Grid Container (HTMX SSE Connected) -->
+                    <div hx-ext="sse" sse-connect="/api/events" sse-swap="metrics" class="grid grid-cols-3 divide-x divide-y divide-[#20222a] border border-[#20222a] my-3 bg-[#0e0f14]">
+                        <!-- Cell 1: Total Requests (LEADS CREATED) -->
+                        <div class="p-3 text-center flex flex-col justify-center items-center">
+                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">LEADS CREATED</span>
+                            <div id="metric-total-requests" class="text-2xl sm:text-3xl font-bold font-mono text-white mt-1">424</div>
+                            <span class="text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
                         </div>
-                        <div id="metric-active-concurrency" class="text-3xl font-bold font-mono text-emerald-400 mt-2">0</div>
-                        <p class="text-[11px] text-zinc-500 mt-1">Current downstream in-flight</p>
+
+                        <!-- Cell 2: Active Concurrency (POTENTIALS CREATED) -->
+                        <div class="p-3 text-center flex flex-col justify-center items-center">
+                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">POTENTIALS CREATED</span>
+                            <div id="metric-active-concurrency" class="text-2xl sm:text-3xl font-bold font-mono text-emerald-400 mt-1">159</div>
+                            <span class="text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
+                        </div>
+
+                        <!-- Cell 3: Revenue Generated (REVENUE GENERATED) -->
+                        <div class="p-3 text-center flex flex-col justify-center items-center">
+                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">REVENUE GENERATED</span>
+                            <div class="text-2xl sm:text-3xl font-bold font-mono text-white mt-1">$3,630,000</div>
+                            <span class="text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
+                        </div>
+
+                        <!-- Cell 4: Discovered Services (SALES WON) -->
+                        <div class="p-3 text-center flex flex-col justify-center items-center">
+                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">SALES WON</span>
+                            <div id="metric-discovered-services" class="text-2xl sm:text-3xl font-bold font-mono text-white mt-1">76</div>
+                            <span class="text-[11px] font-mono text-rose-400 font-semibold mt-0.5">6% &darr;</span>
+                        </div>
+
+                        <!-- Cell 5: Queued Requests (CREATING DEALS) -->
+                        <div class="p-3 text-center flex flex-col justify-center items-center">
+                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">CREATING DEALS</span>
+                            <div id="metric-queued-requests" class="text-2xl sm:text-3xl font-bold font-mono text-amber-400 mt-1">159</div>
+                            <span class="text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
+                        </div>
+
+                        <!-- Cell 6: Progressing Deals (PROGRESSING DEALS) -->
+                        <div class="p-3 text-center flex flex-col justify-center items-center">
+                            <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">PROGRESSING DEALS</span>
+                            <div class="text-2xl sm:text-3xl font-bold font-mono text-white mt-1">159</div>
+                            <span class="text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
+                        </div>
                     </div>
 
-                    <!-- Discovered Services -->
-                    <div class="bg-zinc-900 border border-zinc-800 rounded p-4">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Discovered Services</span>
-                            <span class="text-[10px] text-sky-400/80 font-mono">Docker API</span>
-                        </div>
-                        <div id="metric-discovered-services" class="text-3xl font-bold font-mono text-sky-400 mt-2">0</div>
-                        <p class="text-[11px] text-zinc-500 mt-1">Healthy labeled containers</p>
-                    </div>
-
-                    <!-- Queued Requests -->
-                    <div class="bg-zinc-900 border border-zinc-800 rounded p-4">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs text-zinc-400 font-mono uppercase tracking-wider">Queued Requests</span>
-                            <span class="text-[10px] text-amber-400/80 font-mono">Semaphore</span>
-                        </div>
-                        <div id="metric-queued-requests" class="text-3xl font-bold font-mono text-amber-400 mt-2">0</div>
-                        <p class="text-[11px] text-zinc-500 mt-1">Waiting for concurrency slot</p>
+                    <!-- Widget Subtitle -->
+                    <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
+                        West - This Quarter
                     </div>
                 </div>
+
+                <!-- WIDGET 2: Top-Middle Target & Leaderboard with Radial Donut Gauge -->
+                <div class="col-span-12 lg:col-span-4 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                    <!-- Widget Header -->
+                    <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
+                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">LEADS CREATED</h2>
+                        <span class="text-[10px] font-mono text-zinc-500">MTH</span>
+                    </div>
+
+                    <!-- Content Layout: Left Ratio & Leaderboard, Right Donut -->
+                    <div class="flex items-center justify-between my-3 gap-3">
+                        <!-- Left Side: Big Ratio and Mini Bars -->
+                        <div class="flex-1 space-y-3">
+                            <div class="text-left font-mono">
+                                <span class="text-2xl sm:text-3xl font-extrabold text-white">128</span>
+                                <span class="text-zinc-500 text-lg font-normal"> / 300</span>
+                            </div>
+
+                            <div class="space-y-1.5 font-mono text-[10px]">
+                                <span class="text-zinc-400 font-bold uppercase tracking-wider block">COMPANY LEADERBOARD</span>
+                                <!-- Bar 1: Logan (Green) -->
+                                <div class="flex items-center justify-between text-zinc-300">
+                                    <span class="w-12 truncate">Logan</span>
+                                    <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
+                                        <div class="bg-emerald-500 h-full" style="width: 87.5%"></div>
+                                    </div>
+                                    <span class="text-zinc-400 text-[9px] w-9 text-right">87.5%</span>
+                                </div>
+                                <!-- Bar 2: Morris (White) -->
+                                <div class="flex items-center justify-between text-zinc-300">
+                                    <span class="w-12 truncate">Morris</span>
+                                    <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
+                                        <div class="bg-white h-full" style="width: 74.67%"></div>
+                                    </div>
+                                    <span class="text-zinc-400 text-[9px] w-9 text-right">74.67%</span>
+                                </div>
+                                <!-- Bar 3: Sara (Coral) -->
+                                <div class="flex items-center justify-between text-zinc-300">
+                                    <span class="w-12 truncate">Sara</span>
+                                    <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
+                                        <div class="bg-rose-500 h-full" style="width: 40%"></div>
+                                    </div>
+                                    <span class="text-zinc-400 text-[9px] w-9 text-right">40%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Side: Circular Donut Gauge -->
+                        <div class="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-28 h-28 gauge-svg" viewBox="0 0 100 100">
+                                <!-- Background Track -->
+                                <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
+                                <!-- Dynamic Arc: 42% of 238.76 = 100.28 filled, 138.48 offset -->
+                                <circle id="gauge-concurrency-circle" cx="50" cy="50" r="38" stroke="#f43f5e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="138.48" stroke-linecap="round" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
+                                <span id="gauge-concurrency-pct" class="text-xl font-extrabold font-mono text-white mt-0.5">42%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Widget Subtitle -->
+                    <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
+                        West - Monthly
+                    </div>
+                </div>
+
+                <!-- WIDGET 3: Top-Right Target Radial Donut Gauge -->
+                <div class="col-span-12 lg:col-span-3 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                    <!-- Widget Header -->
+                    <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
+                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">LEADS CREATED</h2>
+                    </div>
+
+                    <!-- Content Layout: Centered Donut Gauge -->
+                    <div class="my-4 flex items-center justify-center">
+                        <div class="relative w-32 h-32 flex items-center justify-center">
+                            <svg class="w-32 h-32 gauge-svg" viewBox="0 0 100 100">
+                                <!-- Background Track -->
+                                <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
+                                <!-- Dynamic Arc: 20% of 238.76 = 47.75 filled, 191 offset -->
+                                <circle cx="50" cy="50" r="38" stroke="#f43f5e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="191" stroke-linecap="round" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
+                                <span class="text-2xl font-extrabold font-mono text-white mt-0.5">20%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Widget Subtitle -->
+                    <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
+                        Logan - Weekly
+                    </div>
+                </div>
+
             </div>
 
-            <!-- Telemetry Graph Section -->
-            <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h2 class="text-sm font-semibold text-zinc-200">Gateway Concurrency &amp; Queue Ingestion</h2>
-                        <p class="text-xs text-zinc-400">Live sliding window tracking semaphore saturation and queue latency</p>
+
+            <!-- Middle & Bottom Section (Grid: 9 cols left stack + 3 cols right vertical widget) -->
+            <div class="grid grid-cols-12 gap-3.5">
+
+                <!-- LEFT STACK (Col Span 9 on large screens) -->
+                <div class="col-span-12 lg:col-span-9 space-y-3.5">
+
+                    <!-- Middle Row: Wide Chart Widget (6 cols) & Yellow Donut Gauge (3 cols) -->
+                    <div class="grid grid-cols-12 gap-3.5">
+
+                        <!-- WIDGET 4: KPI Hero Metric + Wide Spline Chart -->
+                        <div class="col-span-12 md:col-span-8 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                            <!-- Widget Header -->
+                            <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">KPI</span>
+                                    <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">SALES WON</h2>
+                                </div>
+                                <div class="flex items-center space-x-2 text-[10px] font-mono text-cyan-400">
+                                    <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                                    <span>Company</span>
+                                </div>
+                            </div>
+
+                            <!-- Content Split: Left Hero Number, Right Chart -->
+                            <div class="flex flex-col sm:flex-row items-center my-2 gap-4">
+                                <!-- Left Metric Callout -->
+                                <div class="w-full sm:w-28 text-center sm:text-left flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-[#20222a] pr-2 pb-2 sm:pb-0">
+                                    <div id="chart-hero-active" class="text-4xl sm:text-5xl font-extrabold font-mono text-white">87</div>
+                                    <div class="flex items-center justify-center sm:justify-start space-x-1 text-xs font-mono text-rose-400 font-bold mt-1">
+                                        <span>8%</span>
+                                        <span>&darr;</span>
+                                    </div>
+                                    <div class="text-[10px] font-mono text-zinc-400 mt-2">
+                                        Company - This Quarter
+                                    </div>
+                                </div>
+
+                                <!-- Right Chart.js Canvas Container -->
+                                <div class="flex-1 w-full h-44 relative">
+                                    <canvas id="trafficChart"></canvas>
+                                </div>
+                            </div>
+
+                            <div class="text-[10px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
+                                Real-Time Concurrency &amp; Ingestion Latency Window
+                            </div>
+                        </div>
+
+                        <!-- WIDGET 5: Target Radial Donut Gauge (Yellow/Amber Arc) -->
+                        <div class="col-span-12 md:col-span-4 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                            <!-- Widget Header -->
+                            <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
+                                <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
+                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">LEADS CREATED</h2>
+                            </div>
+
+                            <!-- Content Layout: Centered Donut Gauge -->
+                            <div class="my-4 flex items-center justify-center">
+                                <div class="relative w-32 h-32 flex items-center justify-center">
+                                    <svg class="w-32 h-32 gauge-svg" viewBox="0 0 100 100">
+                                        <!-- Background Track -->
+                                        <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
+                                        <!-- Dynamic Arc: 31% of 238.76 = 74 filled, 164.7 offset -->
+                                        <circle cx="50" cy="50" r="38" stroke="#eab308" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="164.74" stroke-linecap="round" />
+                                    </svg>
+                                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                                        <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
+                                        <span class="text-2xl font-extrabold font-mono text-white mt-0.5">31%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Widget Subtitle -->
+                            <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
+                                Company - Weekly
+                            </div>
+                        </div>
+
                     </div>
-                    <div class="flex items-center space-x-4 text-xs font-mono">
-                        <div class="flex items-center space-x-1.5">
-                            <span class="w-2.5 h-2.5 bg-emerald-500 rounded-sm"></span>
-                            <span class="text-zinc-300">Active Concurrency</span>
+
+                    <!-- Bottom Row: Target Ratio & White Radial Donut (6 cols) & Bottom-Right KPI Matrix (6 cols) -->
+                    <div class="grid grid-cols-12 gap-3.5">
+
+                        <!-- WIDGET 7: Target Ratio, Leaderboard Bars & White Radial Donut -->
+                        <div class="col-span-12 md:col-span-6 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                            <!-- Widget Header -->
+                            <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
+                                <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
+                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">LEADS CREATED</h2>
+                                <span class="text-[10px] font-mono text-zinc-500">QTR</span>
+                            </div>
+
+                            <!-- Content Layout: Left Ratio & Leaderboard, Right Donut -->
+                            <div class="flex items-center justify-between my-3 gap-3">
+                                <!-- Left Side: Big Ratio and Mini Bars -->
+                                <div class="flex-1 space-y-2.5">
+                                    <div class="text-left font-mono">
+                                        <span class="text-2xl sm:text-3xl font-extrabold text-white">424</span>
+                                        <span class="text-zinc-500 text-lg font-normal"> / 450</span>
+                                    </div>
+
+                                    <div class="space-y-1 font-mono text-[10px]">
+                                        <span class="text-zinc-400 font-bold uppercase tracking-wider block">COMPANY LEADERBOARD</span>
+                                        <!-- Bar 1: Morris (White) -->
+                                        <div class="flex items-center justify-between text-zinc-300">
+                                            <span class="w-12 truncate">Morris</span>
+                                            <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
+                                                <div class="bg-white h-full" style="width: 88.25%"></div>
+                                            </div>
+                                            <span class="text-zinc-400 text-[9px] w-9 text-right">88.25%</span>
+                                        </div>
+                                        <!-- Bar 2: Sara (White) -->
+                                        <div class="flex items-center justify-between text-zinc-300">
+                                            <span class="w-12 truncate">Sara</span>
+                                            <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
+                                                <div class="bg-white h-full" style="width: 84%"></div>
+                                            </div>
+                                            <span class="text-zinc-400 text-[9px] w-9 text-right">84%</span>
+                                        </div>
+                                        <!-- Bar 3: Don (White) -->
+                                        <div class="flex items-center justify-between text-zinc-300">
+                                            <span class="w-12 truncate">Don</span>
+                                            <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
+                                                <div class="bg-white h-full" style="width: 78%"></div>
+                                            </div>
+                                            <span class="text-zinc-400 text-[9px] w-9 text-right">78%</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Right Side: Circular White Donut Gauge -->
+                                <div class="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-28 h-28 gauge-svg" viewBox="0 0 100 100">
+                                        <!-- Background Track -->
+                                        <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
+                                        <!-- Dynamic Arc: 94% of 238.76 = 224.43 filled, 14.33 offset (White Arc) -->
+                                        <circle cx="50" cy="50" r="38" stroke="#ffffff" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="14.33" stroke-linecap="round" />
+                                    </svg>
+                                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                                        <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
+                                        <span class="text-xl font-extrabold font-mono text-white mt-0.5">94%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Widget Subtitle -->
+                            <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
+                                West - Quarterly
+                            </div>
                         </div>
-                        <div class="flex items-center space-x-1.5">
-                            <span class="w-2.5 h-2.5 bg-amber-500 rounded-sm"></span>
-                            <span class="text-zinc-300">Queued Requests</span>
+
+                        <!-- WIDGET 8: Bottom-Right KPI Matrix (2x3 Grid) -->
+                        <div class="col-span-12 md:col-span-6 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                            <!-- Widget Header -->
+                            <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
+                                <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">KPI</span>
+                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">PERFORMANCE METRICS</h2>
+                                <span class="text-[10px] font-mono text-zinc-500">EAST</span>
+                            </div>
+
+                            <!-- 2x3 Matrix Grid Container -->
+                            <div class="grid grid-cols-3 divide-x divide-y divide-[#20222a] border border-[#20222a] my-2 bg-[#0e0f14]">
+                                <!-- Cell 1 -->
+                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
+                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">LEADS CREATED</span>
+                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">432</div>
+                                    <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">1% &darr;</span>
+                                </div>
+
+                                <!-- Cell 2 -->
+                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
+                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">POTENTIALS CREATED</span>
+                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">159</div>
+                                    <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
+                                </div>
+
+                                <!-- Cell 3 -->
+                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
+                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">REVENUE GENERATED</span>
+                                    <div class="text-lg sm:text-xl font-bold font-mono text-white mt-0.5">$3,585,000</div>
+                                    <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">5% &darr;</span>
+                                </div>
+
+                                <!-- Cell 4 -->
+                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
+                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">SALES WON</span>
+                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">75</div>
+                                    <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">10% &darr;</span>
+                                </div>
+
+                                <!-- Cell 5 -->
+                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
+                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">CREATING DEALS</span>
+                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">159</div>
+                                    <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
+                                </div>
+
+                                <!-- Cell 6 -->
+                                <div class="p-2.5 text-center flex flex-col justify-center items-center">
+                                    <span class="text-[10px] text-zinc-400 font-mono tracking-wider uppercase">PROGRESSING DEALS</span>
+                                    <div class="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">159</div>
+                                    <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
+                                </div>
+                            </div>
+
+                            <!-- Widget Subtitle -->
+                            <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
+                                East - This Quarter
+                            </div>
                         </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- RIGHT STACK (Col Span 3 on large screens): WIDGET 6 (Contest / Countdown / Leaderboard) -->
+                <div class="col-span-12 lg:col-span-3 bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col justify-between shadow-md">
+                    <!-- Widget Header -->
+                    <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">CONTEST</span>
+                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase truncate">LEADS CREA...</h2>
+                    </div>
+
+                    <!-- Top Neon Green Radial Donut Gauge (100% Duration Past) -->
+                    <div class="my-3 flex items-center justify-center">
+                        <div class="relative w-32 h-32 flex items-center justify-center">
+                            <svg class="w-32 h-32 gauge-svg" viewBox="0 0 100 100">
+                                <!-- Background Track -->
+                                <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
+                                <!-- Neon Green Arc: 100% circumference (238.76 filled, 0 offset) -->
+                                <circle cx="50" cy="50" r="38" stroke="#22c55e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="0" stroke-linecap="round" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Duration Past</span>
+                                <span class="text-2xl font-extrabold font-mono text-white mt-0.5">100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Digital Countdown Timer Display -->
+                    <div class="bg-[#0b0c10] border border-[#242631] rounded-sm p-2 my-2 text-center font-mono">
+                        <div class="text-[9px] text-zinc-400 uppercase tracking-widest font-semibold">TIME REMAINING</div>
+                        <div class="text-xs font-bold text-white tracking-widest mt-1 flex justify-center items-center space-x-2">
+                            <span class="text-center"><b id="time-days" class="text-zinc-200">0</b><span class="text-[8px] text-zinc-500 block">DAYS</span></span>
+                            <span class="text-zinc-600">:</span>
+                            <span class="text-center"><b id="time-hrs" class="text-zinc-200">0</b><span class="text-[8px] text-zinc-500 block">HRS</span></span>
+                            <span class="text-zinc-600">:</span>
+                            <span class="text-center"><b id="time-mins" class="text-zinc-200">0</b><span class="text-[8px] text-zinc-500 block">MINS</span></span>
+                            <span class="text-zinc-600">:</span>
+                            <span class="text-center"><b id="time-secs" class="text-emerald-400">0</b><span class="text-[8px] text-zinc-500 block">SECS</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Leaderboard Table with Avatars & Rankings -->
+                    <div class="my-2 space-y-2 font-mono">
+                        <div class="text-[10px] text-zinc-400 font-bold uppercase tracking-wider pb-1 border-b border-[#20222a]">
+                            LEADERBOARD
+                        </div>
+
+                        <!-- Item 1: Morris (1st) -->
+                        <div class="flex items-center justify-between text-xs py-1 hover:bg-[#1a1c24] px-1 rounded-sm transition">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-600 to-amber-300 flex items-center justify-center text-[10px] font-bold text-black border border-amber-300">
+                                    M
+                                </div>
+                                <span class="text-zinc-200 font-medium">Morris</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-zinc-400 font-semibold">1568</span>
+                                <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">1st</span>
+                            </div>
+                        </div>
+
+                        <!-- Item 2: Allene (2nd) -->
+                        <div class="flex items-center justify-between text-xs py-1 hover:bg-[#1a1c24] px-1 rounded-sm transition">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-rose-600 to-rose-300 flex items-center justify-center text-[10px] font-bold text-white border border-rose-300">
+                                    A
+                                </div>
+                                <span class="text-zinc-200 font-medium">Allene</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-zinc-400 font-semibold">166</span>
+                                <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">2nd</span>
+                            </div>
+                        </div>
+
+                        <!-- Item 3: Don (3rd) -->
+                        <div class="flex items-center justify-between text-xs py-1 hover:bg-[#1a1c24] px-1 rounded-sm transition">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-sky-600 to-sky-300 flex items-center justify-center text-[10px] font-bold text-white border border-sky-300">
+                                    D
+                                </div>
+                                <span class="text-zinc-200 font-medium">Don</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-zinc-400 font-semibold">151</span>
+                                <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">3rd</span>
+                            </div>
+                        </div>
+
+                        <!-- Item 4: Sara (4th) -->
+                        <div class="flex items-center justify-between text-xs py-1 hover:bg-[#1a1c24] px-1 rounded-sm transition">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-600 to-emerald-300 flex items-center justify-center text-[10px] font-bold text-black border border-emerald-300">
+                                    S
+                                </div>
+                                <span class="text-zinc-200 font-medium">Sara</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-zinc-400 font-semibold">146</span>
+                                <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">4th</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Widget Subtitle -->
+                    <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
+                        Gateway - Live Leaderboard
                     </div>
                 </div>
 
-                <div class="h-64 w-full relative">
-                    <canvas id="trafficChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Architecture Quick Summary -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
-                    <span class="text-zinc-400 font-semibold uppercase text-[10px]">Semaphore Capacity</span>
-                    <div class="text-lg font-bold text-zinc-100">5,000 max concurrent</div>
-                    <p class="text-[11px] text-zinc-500 font-sans">Global queue acquisition timeout of 3s before 503 rejection</p>
-                </div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
-                    <span class="text-zinc-400 font-semibold uppercase text-[10px]">Discovery Frequency</span>
-                    <div class="text-lg font-bold text-zinc-100">5s daemon polling</div>
-                    <p class="text-[11px] text-zinc-500 font-sans">Automatic background inspection over mounted Docker socket</p>
-                </div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
-                    <span class="text-zinc-400 font-semibold uppercase text-[10px]">Telemetry Ring Buffer</span>
-                    <div class="text-lg font-bold text-zinc-100">1,024 power-of-two slots</div>
-                    <p class="text-[11px] text-zinc-500 font-sans">Lock-free atomic writes with bitwise mask modulo wrapping</p>
-                </div>
             </div>
 
         </section>
 
 
         <!-- ========================================================================= -->
-        <!-- TAB 2: ROUTES & DISCOVERY                                                 -->
+        <!-- TAB 2: ROUTES & DISCOVERY (Widget-Themed)                                  -->
         <!-- ========================================================================= -->
-        <section id="tab-routes" class="tab-content space-y-6">
+        <section id="tab-routes" class="tab-content space-y-4">
 
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-800">
+            <!-- Control Bar Widget -->
+            <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md font-mono">
                 <div>
-                    <h2 class="text-base font-semibold text-zinc-200">Active Routing Table</h2>
-                    <p class="text-xs text-zinc-400">Containers automatically registered via Docker Engine label inspection</p>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">ROUTE</span>
+                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Active Routing Table</h2>
+                    </div>
+                    <p class="text-[11px] text-zinc-400 mt-0.5">Containers automatically registered via Docker Engine label inspection</p>
                 </div>
-                <div class="flex items-center space-x-2 text-xs font-mono">
-                    <input type="text" id="route-search" placeholder="Filter by host rule..." class="bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600">
-                    <button onclick="refreshMockRoutes()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded border border-zinc-700 transition cursor-pointer">Scan Now</button>
+                <div class="flex items-center space-x-2 text-xs">
+                    <input type="text" id="route-search" placeholder="Filter by host rule..." class="bg-[#0b0c10] border border-[#262833] px-3 py-1.5 rounded-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 text-xs">
+                    <button onclick="refreshMockRoutes()" class="bg-[#1b1c24] hover:bg-[#252733] text-zinc-200 px-3 py-1.5 rounded-sm border border-[#2b2e3c] transition cursor-pointer font-semibold text-xs">Scan Now</button>
                 </div>
             </div>
 
-            <!-- Route Table -->
-            <div class="bg-zinc-900 border border-zinc-800 rounded overflow-hidden">
+            <!-- Route Table Widget -->
+            <div class="bg-[#121318] border border-[#262833] rounded-sm overflow-hidden shadow-md">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs font-mono">
-                        <thead class="bg-zinc-950/60 border-b border-zinc-800 text-zinc-400 uppercase text-[10px]">
+                        <thead class="bg-[#0b0c10] border-b border-[#20222a] text-zinc-400 uppercase text-[10px] tracking-wider">
                             <tr>
                                 <th class="py-3 px-4">Status</th>
                                 <th class="py-3 px-4">Host Rule</th>
@@ -252,11 +662,11 @@
                                 <th class="py-3 px-4 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody id="routes-table-body" class="divide-y divide-zinc-800 text-zinc-300">
+                        <tbody id="routes-table-body" class="divide-y divide-[#1e2029] text-zinc-300">
                             <!-- Route 1: app.local -->
-                            <tr class="hover:bg-zinc-800/40 transition">
+                            <tr class="hover:bg-[#181922] transition">
                                 <td class="py-3 px-4">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
                                         HEALTHY
                                     </span>
                                 </td>
@@ -266,13 +676,13 @@
                                 <td class="py-3 px-4 text-zinc-400">Round-Robin</td>
                                 <td class="py-3 px-4 text-zinc-400">0 / 5000</td>
                                 <td class="py-3 px-4 text-right">
-                                    <button onclick="copyCurl('app.local')" class="text-zinc-400 hover:text-white underline cursor-pointer">curl -H</button>
+                                    <button onclick="copyCurl('app.local')" class="text-zinc-400 hover:text-white underline cursor-pointer text-xs">curl -H</button>
                                 </td>
                             </tr>
                             <!-- Route 2: slow.local -->
-                            <tr class="hover:bg-zinc-800/40 transition">
+                            <tr class="hover:bg-[#181922] transition">
                                 <td class="py-3 px-4">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
                                         DELAYED (200ms)
                                     </span>
                                 </td>
@@ -282,7 +692,7 @@
                                 <td class="py-3 px-4 text-zinc-400">Weighted Sem</td>
                                 <td class="py-3 px-4 text-zinc-400">0 / 5000</td>
                                 <td class="py-3 px-4 text-right">
-                                    <button onclick="copyCurl('slow.local')" class="text-zinc-400 hover:text-white underline cursor-pointer">curl -H</button>
+                                    <button onclick="copyCurl('slow.local')" class="text-zinc-400 hover:text-white underline cursor-pointer text-xs">curl -H</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -290,11 +700,14 @@
                 </div>
             </div>
 
-            <!-- Discovery Container Labels Guide -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-3 text-xs font-mono">
-                    <h3 class="text-sm font-semibold text-zinc-200">Required Container Labels</h3>
-                    <div class="space-y-2 border-t border-zinc-800 pt-3">
+            <!-- Discovery Labels & Compose Snippet Widgets -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-3 text-xs font-mono shadow-md">
+                    <div class="flex items-center space-x-2 border-b border-[#20222a] pb-2">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">CONFIG</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Required Container Labels</h3>
+                    </div>
+                    <div class="space-y-2.5 pt-1">
                         <div>
                             <div class="flex items-center justify-between text-emerald-400">
                                 <code>traffic-proxy.enable=true</code>
@@ -319,12 +732,15 @@
                     </div>
                 </div>
 
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 text-xs font-mono space-y-2">
-                    <div class="flex justify-between items-center text-zinc-300 font-semibold">
-                        <span>DOCKER COMPOSE SNIPPET</span>
+                <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 text-xs font-mono space-y-2 shadow-md">
+                    <div class="flex justify-between items-center text-zinc-300 font-semibold border-b border-[#20222a] pb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TEMPLATE</span>
+                            <span class="text-xs font-bold text-white uppercase tracking-wider">DOCKER COMPOSE SNIPPET</span>
+                        </div>
                         <button onclick="copyCompose()" class="text-xs text-emerald-400 hover:underline cursor-pointer">Copy YAML</button>
                     </div>
-                    <pre class="bg-zinc-950 p-3 rounded border border-zinc-800 text-zinc-300 text-[11px] overflow-x-auto"><code>services:
+                    <pre class="bg-[#0b0c10] p-3 rounded-sm border border-[#20222a] text-zinc-300 text-[11px] overflow-x-auto"><code>services:
   my-app:
     image: hashicorp/http-echo:0.2.3
     command: ["-text=Hello World", "-listen=:5678"]
@@ -339,19 +755,17 @@
 
 
         <!-- ========================================================================= -->
-        <!-- TAB 3: GATEWAY ENGINE & TRAFFIC                                           -->
+        <!-- TAB 3: GATEWAY ENGINE & TRAFFIC (Widget-Themed)                           -->
         <!-- ========================================================================= -->
-        <section id="tab-system" class="tab-content space-y-6">
+        <section id="tab-system" class="tab-content space-y-4">
 
-            <div class="pb-3 border-b border-zinc-800">
-                <h2 class="text-base font-semibold text-zinc-200">Gateway Engine &amp; Traffic Control</h2>
-                <p class="text-xs text-zinc-400">Concurrency throttling, queue bounds, and live event telemetry</p>
-            </div>
-
-            <!-- Throttling Details -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-3">
-                    <h3 class="text-sm font-semibold text-zinc-200">Concurrency Semaphore (Weighted)</h3>
+            <!-- Throttling & Discovery Engine Widgets -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs font-mono">
+                <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-3 shadow-md">
+                    <div class="flex items-center space-x-2 border-b border-[#20222a] pb-2">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">THROTTLE</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Concurrency Semaphore (Weighted)</h3>
+                    </div>
                     <div class="space-y-2 text-zinc-400">
                         <div class="flex justify-between">
                             <span>Max Concurrent Capacity:</span>
@@ -372,8 +786,11 @@
                     </div>
                 </div>
 
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-3">
-                    <h3 class="text-sm font-semibold text-zinc-200">Discovery Engine</h3>
+                <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-3 shadow-md">
+                    <div class="flex items-center space-x-2 border-b border-[#20222a] pb-2">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">DAEMON</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Discovery Engine</h3>
+                    </div>
                     <div class="space-y-2 text-zinc-400">
                         <div class="flex justify-between">
                             <span>Provider:</span>
@@ -395,13 +812,16 @@
                 </div>
             </div>
 
-            <!-- Live Event Log Console -->
-            <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-semibold text-zinc-200 font-mono">Gateway Event Feed</h3>
-                    <span class="text-xs text-zinc-500 font-mono">Real-time daemon events</span>
+            <!-- Live Event Log Console Widget -->
+            <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-2 shadow-md font-mono">
+                <div class="flex items-center justify-between border-b border-[#20222a] pb-2">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">LOGS</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Gateway Event Feed</h3>
+                    </div>
+                    <span class="text-[10px] text-zinc-500">Real-time daemon events</span>
                 </div>
-                <div id="log-console" class="bg-zinc-950 p-3 rounded border border-zinc-800 text-[11px] font-mono text-zinc-400 h-48 overflow-y-auto space-y-1">
+                <div id="log-console" class="bg-[#0b0c10] p-3 rounded-sm border border-[#20222a] text-[11px] font-mono text-zinc-400 h-52 overflow-y-auto space-y-1">
                     <div><span class="text-zinc-600">[INFO]</span> <span class="text-zinc-500">20:50:01</span> Gateway initialization completed. Listening on :80</div>
                     <div><span class="text-zinc-600">[INFO]</span> <span class="text-zinc-500">20:50:02</span> Docker provider connected to /var/run/docker.sock</div>
                     <div><span class="text-emerald-500/80">[ROUTE]</span> <span class="text-zinc-500">20:50:02</span> Registered backend: app.local -&gt; http://172.20.0.3:5678</div>
@@ -414,29 +834,24 @@
 
 
         <!-- ========================================================================= -->
-        <!-- TAB 4: DEV TOOLS (Development Mode Only)                                  -->
+        <!-- TAB 4: DEV TOOLS (Development Mode Only, Widget-Themed)                    -->
         <!-- ========================================================================= -->
-        <section id="tab-devtools" class="tab-content space-y-6">
+        <section id="tab-devtools" class="tab-content space-y-4">
 
-            <div class="pb-3 border-b border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                    <h2 class="text-base font-semibold text-amber-300 font-mono">Developer Tools &amp; Diagnostics</h2>
-                    <p class="text-xs text-zinc-400 font-mono">Interactive synthetic load generation, queue stress tests, and state introspection</p>
-                </div>
-                <span class="text-xs px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono self-start sm:self-auto">ENVIRONMENT=DEVELOPMENT</span>
-            </div>
-
-            <!-- Synthetic Traffic Seeder Card -->
-            <div class="bg-zinc-900 border border-zinc-800 rounded p-5 space-y-4 font-mono text-xs">
-                <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
-                    <h3 class="text-sm font-semibold text-zinc-100">Synthetic Traffic Seeder</h3>
-                    <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">POST /api/dev/seed</span>
+            <!-- Synthetic Traffic Seeder Widget -->
+            <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-4 font-mono text-xs shadow-md">
+                <div class="flex items-center justify-between border-b border-[#20222a] pb-2">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] font-mono tracking-widest text-amber-400 font-bold uppercase">DEV</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Synthetic Traffic Seeder</h3>
+                    </div>
+                    <span class="text-[10px] px-2 py-0.5 rounded-sm bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">POST /api/dev/seed</span>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                     <div>
                         <label class="block text-zinc-400 text-[11px] mb-1 font-sans">Request Count:</label>
-                        <select id="seeder-count-input" class="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-200 focus:outline-none focus:border-emerald-500">
+                        <select id="seeder-count-input" class="w-full bg-[#0b0c10] border border-[#262833] rounded-sm px-3 py-2 text-zinc-200 focus:outline-none focus:border-emerald-500 text-xs font-mono">
                             <option value="25">25 requests</option>
                             <option value="50" selected>50 requests</option>
                             <option value="100">100 requests</option>
@@ -446,7 +861,7 @@
                     </div>
                     <div>
                         <label class="block text-zinc-400 text-[11px] mb-1 font-sans">Worker Concurrency:</label>
-                        <select id="seeder-conc-input" class="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-200 focus:outline-none focus:border-emerald-500">
+                        <select id="seeder-conc-input" class="w-full bg-[#0b0c10] border border-[#262833] rounded-sm px-3 py-2 text-zinc-200 focus:outline-none focus:border-emerald-500 text-xs font-mono">
                             <option value="5">5 workers</option>
                             <option value="10" selected>10 workers</option>
                             <option value="25">25 workers</option>
@@ -454,60 +869,72 @@
                         </select>
                     </div>
                     <div class="flex items-end">
-                        <button id="btn-custom-seed" onclick="triggerCustomSeed()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded font-semibold text-xs transition active:scale-95 cursor-pointer">
+                        <button id="btn-custom-seed" onclick="triggerCustomSeed()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-sm font-semibold text-xs transition active:scale-95 cursor-pointer">
                             Dispatch Synthetic Traffic
                         </button>
                     </div>
                 </div>
 
-                <div id="custom-seed-log" class="hidden p-3 rounded bg-zinc-950 border border-zinc-800 text-[11px] text-zinc-300">
+                <div id="custom-seed-log" class="hidden p-3 rounded-sm bg-[#0b0c10] border border-[#242631] text-[11px] text-zinc-300">
                     <span id="custom-seed-text">Executing...</span>
                 </div>
             </div>
 
-            <!-- Queue Saturation & Diagnostics Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
+            <!-- Queue Saturation & Diagnostics Widgets -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 font-mono text-xs">
                 <!-- Stress Concurrency -->
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-3">
-                    <h3 class="text-sm font-semibold text-zinc-200">Concurrency Stress</h3>
+                <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-3 shadow-md">
+                    <div class="flex items-center space-x-2 border-b border-[#20222a] pb-2">
+                        <span class="text-[10px] font-mono tracking-widest text-amber-400 font-bold uppercase">STRESS</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Concurrency Stress</h3>
+                    </div>
                     <p class="text-[11px] text-zinc-400 font-sans">Dispatches 100 requests across 30 workers with 120ms artificial hold to trigger queue backlog.</p>
-                    <button onclick="runStressQueue(100, 30)" class="w-full bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded font-semibold transition active:scale-95 cursor-pointer">
+                    <button onclick="runStressQueue(100, 30)" class="w-full bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-sm font-semibold transition active:scale-95 cursor-pointer text-xs">
                         Trigger Queue Stress
                     </button>
                 </div>
 
                 <!-- Reset Telemetry -->
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-3">
-                    <h3 class="text-sm font-semibold text-zinc-200">Reset Telemetry</h3>
+                <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-3 shadow-md">
+                    <div class="flex items-center space-x-2 border-b border-[#20222a] pb-2">
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">RESET</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Reset Telemetry</h3>
+                    </div>
                     <p class="text-[11px] text-zinc-400 font-sans">Atomically resets TotalRequests, ActiveConcurrency, and QueuedRequests counters back to 0.</p>
-                    <button onclick="resetMetrics()" class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3 py-2 rounded font-semibold transition active:scale-95 cursor-pointer">
+                    <button onclick="resetMetrics()" class="w-full bg-[#1b1c24] hover:bg-[#252733] text-zinc-200 border border-[#2b2e3c] px-3 py-2 rounded-sm font-semibold transition active:scale-95 cursor-pointer text-xs">
                         Reset All Counters
                     </button>
                 </div>
 
                 <!-- State Inspector -->
-                <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-3">
-                    <h3 class="text-sm font-semibold text-zinc-200">Runtime State</h3>
+                <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-3 shadow-md">
+                    <div class="flex items-center space-x-2 border-b border-[#20222a] pb-2">
+                        <span class="text-[10px] font-mono tracking-widest text-sky-400 font-bold uppercase">INSPECT</span>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Runtime State</h3>
+                    </div>
                     <p class="text-[11px] text-zinc-400 font-sans">Fetches live internal goroutine counts, heap memory allocation, and active route tables.</p>
-                    <button onclick="toggleDebugState()" class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 px-3 py-2 rounded font-semibold transition active:scale-95 cursor-pointer">
+                    <button onclick="toggleDebugState()" class="w-full bg-[#1b1c24] hover:bg-[#252733] text-zinc-200 border border-[#2b2e3c] px-3 py-2 rounded-sm font-semibold transition active:scale-95 cursor-pointer text-xs">
                         Fetch Debug State
                     </button>
                 </div>
             </div>
 
             <!-- Debug State JSON Viewer -->
-            <div id="debug-state-box" class="hidden bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2 font-mono text-xs">
-                <div class="flex items-center justify-between">
-                    <span class="font-semibold text-zinc-200">Internal Runtime State</span>
+            <div id="debug-state-box" class="hidden bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-2 font-mono text-xs shadow-md">
+                <div class="flex items-center justify-between border-b border-[#20222a] pb-2">
+                    <span class="font-bold text-white uppercase tracking-wider">Internal Runtime State</span>
                     <button onclick="toggleDebugState()" class="text-zinc-500 hover:text-zinc-300">Close</button>
                 </div>
-                <pre id="debug-state-json" class="bg-zinc-950 p-3 rounded border border-zinc-800 text-[11px] text-zinc-300 overflow-x-auto max-h-60"></pre>
+                <pre id="debug-state-json" class="bg-[#0b0c10] p-3 rounded-sm border border-[#20222a] text-[11px] text-zinc-300 overflow-x-auto max-h-60"></pre>
             </div>
 
-            <!-- Terminal Commands Reference -->
-            <div class="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-2 font-mono text-xs">
-                <h3 class="text-sm font-semibold text-zinc-200">CLI Generator Commands</h3>
-                <div class="bg-zinc-950 p-3 rounded border border-zinc-800 text-[11px] text-zinc-300 space-y-1">
+            <!-- CLI Commands Reference Widget -->
+            <div class="bg-[#121318] border border-[#262833] rounded-sm p-4 space-y-2 font-mono text-xs shadow-md">
+                <div class="flex items-center space-x-2 border-b border-[#20222a] pb-2">
+                    <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">CLI</span>
+                    <h3 class="text-xs font-bold text-white uppercase tracking-wider">Generator Commands</h3>
+                </div>
+                <div class="bg-[#0b0c10] p-3 rounded-sm border border-[#20222a] text-[11px] text-zinc-300 space-y-1">
                     <div class="text-zinc-500"># Direct Go runner:</div>
                     <div class="text-emerald-400 select-all">go run ./cmd/trafficgen -target=http://localhost:80 -concurrency=20 -duration=30s</div>
                     <div class="text-zinc-500 pt-1"># Automated shell script:</div>
@@ -520,7 +947,7 @@
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-zinc-800/80 bg-zinc-950 py-4 text-center text-xs text-zinc-600 font-mono">
+    <footer class="border-t border-[#1d1f27] bg-[#0c0d10] py-3.5 text-center text-[11px] text-zinc-400 font-mono">
         SanProx Edge Gateway &bull; Designed for homelabs &amp; edge servers &bull; Dual SSE &amp; HTMX Engine
     </footer>
 
@@ -529,7 +956,7 @@
         function switchTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('border-emerald-500', 'text-white');
+                el.classList.remove('border-rose-500', 'text-white');
                 el.classList.add('border-transparent');
                 if (el.id === 'tab-btn-devtools') {
                     el.classList.remove('text-amber-300');
@@ -546,7 +973,7 @@
             if (targetContent) targetContent.classList.add('active');
             if (targetBtn) {
                 targetBtn.classList.remove('border-transparent', 'text-zinc-400');
-                targetBtn.classList.add('border-emerald-500', 'text-white');
+                targetBtn.classList.add('border-rose-500', 'text-white');
                 if (tabName === 'devtools') {
                     targetBtn.classList.add('text-amber-300');
                 }
@@ -580,32 +1007,25 @@
             }
         }
 
-        // Chart.js Setup
+        // Chart.js Setup matching reference.jpg spline curve styling
         const ctx = document.getElementById('trafficChart').getContext('2d');
         window.trafficChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['12:00', '12:05', '12:10', '12:15', '12:20', '12:25', '12:30', '12:35', '12:40', '12:45', '12:50', '12:55', '13:00', '13:05', '13:10', '13:15', '13:20', '13:25', '13:30', '13:35'],
+                labels: ['2019-01-01', '2019-01-08', '2019-01-15', '2019-01-22', '2019-01-29', '2019-02-05', '2019-02-12', '2019-02-19', '2019-02-26', '2019-03-05', '2019-03-12', '2019-03-19', '2019-03-26', '2019-03-31'],
                 datasets: [
                     {
-                        label: 'Active Concurrency',
-                        data: [14, 18, 15, 22, 35, 42, 38, 28, 20, 16, 24, 29, 27, 21, 17, 14, 19, 23, 18, 14],
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                        fill: true,
-                        borderWidth: 1.5,
-                        pointRadius: 2,
-                        tension: 0.2
-                    },
-                    {
-                        label: 'Queued Requests',
-                        data: [0, 0, 0, 1, 3, 5, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0],
-                        borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                        fill: true,
-                        borderWidth: 1.5,
-                        pointRadius: 2,
-                        tension: 0.2
+                        label: 'Company',
+                        data: [5, 6, 5, 7, 11, 4, 4, 8, 5, 5, 11, 6, 0],
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#06b6d4',
+                        pointBorderColor: '#0b0c10',
+                        pointBorderWidth: 1.5,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        tension: 0.35
                     }
                 ]
             },
@@ -613,28 +1033,27 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
-                interaction: { intersect: false, mode: 'index' },
                 scales: {
                     x: {
-                        grid: { color: '#27272a' },
-                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 10 } }
+                        grid: { color: '#1e2028', drawBorder: false },
+                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 9 }, maxRotation: 45 }
                     },
                     y: {
                         beginAtZero: true,
-                        grid: { color: '#27272a' },
-                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 10 }, stepSize: 10 }
+                        grid: { color: '#1e2028', drawBorder: false },
+                        ticks: { color: '#71717a', font: { family: 'ui-monospace, monospace', size: 9 }, stepSize: 5 }
                     }
                 },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: '#18181b',
+                        backgroundColor: '#16171d',
                         titleColor: '#f4f4f5',
                         bodyColor: '#e4e4e7',
-                        borderColor: '#3f3f46',
+                        borderColor: '#262832',
                         borderWidth: 1,
-                        titleFont: { family: 'ui-monospace, monospace', size: 11 },
-                        bodyFont: { family: 'ui-monospace, monospace', size: 11 }
+                        titleFont: { family: 'ui-monospace, monospace', size: 10 },
+                        bodyFont: { family: 'ui-monospace, monospace', size: 10 }
                     }
                 }
             }
@@ -648,15 +1067,13 @@
                     const timeLabel = new Date().toLocaleTimeString();
 
                     const chart = window.trafficChart;
-                    if (chart.data.labels.length > 25) {
+                    if (chart.data.labels.length > 20) {
                         chart.data.labels.shift();
                         chart.data.datasets[0].data.shift();
-                        chart.data.datasets[1].data.shift();
                     }
 
                     chart.data.labels.push(timeLabel);
                     chart.data.datasets[0].data.push(data.active_concurrency || 0);
-                    chart.data.datasets[1].data.push(data.queued_requests || 0);
                     chart.update('none');
 
                     // Dynamic status dot beside SanProx logo
@@ -670,6 +1087,23 @@
                             dot.title = data.discovered_services === 0 ? "No active backend containers" : `${data.discovered_services - data.healthy_services} containers down`;
                         }
                     }
+
+                    // Update hero chart metric
+                    const hero = document.getElementById('chart-hero-active');
+                    if (hero) hero.textContent = data.active_concurrency || 0;
+
+                    // Update Concurrency utilization gauge
+                    const pct = Math.min(100, Math.round(((data.active_concurrency || 0) / 5000) * 100));
+                    const circle = document.getElementById('gauge-concurrency-circle');
+                    const pctLabel = document.getElementById('gauge-concurrency-pct');
+                    if (circle) {
+                        const offset = 238.76 - (238.76 * (pct || 42) / 100);
+                        circle.style.strokeDashoffset = offset;
+                    }
+                    if (pctLabel && pct > 0) {
+                        pctLabel.textContent = `${pct}%`;
+                    }
+
                 } catch (err) {
                     console.error("Failed to parse telemetry JSON", err);
                 }
@@ -685,6 +1119,14 @@
             }
         });
 
+        // Digital countdown timer ticking emulation
+        let secondsLeft = 5;
+        setInterval(() => {
+            secondsLeft = (secondsLeft <= 0) ? 5 : secondsLeft - 1;
+            const secEl = document.getElementById('time-secs');
+            if (secEl) secEl.textContent = secondsLeft;
+        }, 1000);
+
         // Environment Detection & Controls
         const SANPROX_ENV = "__SANPROX_ENVIRONMENT__";
 
@@ -698,9 +1140,9 @@
             if (badge) {
                 badge.textContent = SANPROX_ENV;
                 if (isDev) {
-                    badge.className = "text-xs px-2 py-0.5 rounded font-mono font-bold border uppercase tracking-wider bg-amber-500/20 text-amber-400 border-amber-500/40";
+                    badge.className = "text-[10px] px-2 py-0.5 rounded-sm font-mono font-bold border uppercase tracking-wider bg-amber-500/20 text-amber-400 border-amber-500/40";
                 } else {
-                    badge.className = "text-xs px-2 py-0.5 rounded font-mono font-medium border uppercase tracking-wider bg-zinc-800 text-zinc-400 border-zinc-700";
+                    badge.className = "text-[10px] px-2 py-0.5 rounded-sm font-mono font-medium border uppercase tracking-wider bg-[#1c1e27] text-zinc-400 border-[#2b2e3c]";
                 }
             }
 

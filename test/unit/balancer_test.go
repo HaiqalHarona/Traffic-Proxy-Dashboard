@@ -145,7 +145,7 @@ func TestNewBalancer_AlgorithmParsing(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		input       string
+		input        string
 		expectedType string
 	}{
 		{"round-robin", "*proxy.RoundRobin"},

@@ -209,14 +209,16 @@ func TestDockerProvider_ScanAndStart(t *testing.T) {
 		t.Fatal("Expected s2.Enabled=true (has rule label)")
 	}
 
-	// c-disabled: has rule label so Enabled=true (enable=false is overridden by rule presence)
+	// c-disabled: explicit traffic-proxy.enable=false wins over rule label presence.
+	// Improvement 3: enable=false is now an explicit opt-out that cannot be overridden
+	// by a rule label, allowing operators to stage a container without routing traffic to it.
 	s3 := services[3]
 	if s3.HostRule != "disabled.local" {
 		t.Fatalf("Expected s3.HostRule=disabled.local, got %q", s3.HostRule)
 	}
-	// traffic-proxy.enable=false but traffic-proxy.rule present → Enabled=true
-	if !s3.Enabled {
-		t.Fatal("Expected s3.Enabled=true (rule label present)")
+	// traffic-proxy.enable=false overrides rule label → Enabled=false
+	if s3.Enabled {
+		t.Fatal("Expected s3.Enabled=false (explicit enable=false overrides rule label)")
 	}
 
 	// c-no-labels: no labels at all — HostRule derived from container name, Enabled=false
@@ -248,4 +250,3 @@ func TestDockerProvider_ScanAndStart(t *testing.T) {
 		t.Fatalf("Expected context cancellation error, got %v", startErr)
 	}
 }
-

@@ -38,25 +38,39 @@ func (b *RoundRobin) Pick(backends []*Backend, _ string) *Backend {
 }
 
 // LeastConn selects the backend with the minimum number of active in-flight connections.
-type LeastConn struct{}
+// Improvement: when multiple backends share the minimum, a round-robin offset is used
+// to spread sequential traffic evenly rather than always picking index 0.
+type LeastConn struct {
+	tieBreaker atomic.Uint64
+}
 
 // Pick selects the backend with the lowest active connection count.
+// On ties it uses an atomic round-robin offset to prevent all sequential
+// requests landing on backends[0] when the pool is idle.
 func (b *LeastConn) Pick(backends []*Backend, _ string) *Backend {
 	if len(backends) == 0 {
 		return nil
 	}
-	best := backends[0]
-	minConns := best.ActiveConns.Load()
-
+	minConns := backends[0].ActiveConns.Load()
 	for i := 1; i < len(backends); i++ {
-		candidate := backends[i]
-		conns := candidate.ActiveConns.Load()
-		if conns < minConns {
-			minConns = conns
-			best = candidate
+		if c := backends[i].ActiveConns.Load(); c < minConns {
+			minConns = c
 		}
 	}
-	return best
+
+	// Collect all backends that share the minimum connection count.
+	tied := backends[:0:0] // zero-len, same underlying type
+	for _, b := range backends {
+		if b.ActiveConns.Load() == minConns {
+			tied = append(tied, b)
+		}
+	}
+	if len(tied) == 1 {
+		return tied[0]
+	}
+	// Break ties with a round-robin offset.
+	idx := b.tieBreaker.Add(1) - 1
+	return tied[idx%uint64(len(tied))]
 }
 
 // Random selects a backend uniformly at random.

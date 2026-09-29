@@ -132,7 +132,7 @@ Container auto-discovery and backend synchronization.
   - **`ServiceTarget`**: Struct capturing discovered container metadata (`ID`, `Name`, `Host`, `Port`, `HostRule`, `TargetURL`, `Labels`, `Healthy`, `Reachable`, `Enabled`, `DiscoveryError`, `CreatedAt`).
   - **`Provider` Interface**: Generic abstraction exposing `Name() string`, `Start(ctx context.Context) error`, `Services() ([]ServiceTarget, error)`, and `Subscribe() <-chan []ServiceTarget`. Designed to support Swarm, Nomad, Kubernetes, or gossip backends.
   - **`DockerProvider`**: Implements `Provider` using `github.com/docker/docker/client`.
-  - **`Scan(ctx)`**: Queries `/var/run/docker.sock` via `ContainerList`. Scans all running containers regardless of labels. Derives `HostRule` from `traffic-proxy.rule` label or container name. Tests endpoint reachability via a 2-second TCP probe (`probeReachable`); unreachable containers remain in the catalogue with `DiscoveryError` populated. Marked `Enabled=true` for labelled containers and `Enabled=false` for raw unlabelled backends. Publishes targets to subscriber channel.
+  - **`Scan(ctx)`**: Queries `/var/run/docker.sock` via `ContainerList`. Scans all running containers regardless of labels. Derives `HostRule` from `traffic-proxy.rule` label or container name. Explicit `traffic-proxy.enable=false` always opts a container out of routing, even when a `traffic-proxy.rule` label is present. Network IP selection sorts network names alphabetically for deterministic resolution across scans. TCP reachability probes run **concurrently** via `golang.org/x/sync/errgroup` (bounded at 20 workers) so a scan with many unreachable containers does not block past the poll interval. Unreachable containers remain in the catalogue with `DiscoveryError` populated. Publishes targets to subscriber channel.
   - **`NewDockerProviderWithClient` & `SetServices`**: Test helpers enabling dependency injection of custom HTTP mock Docker clients.
 
 #### internal/metrics/
@@ -151,16 +151,16 @@ Traffic management, concurrency throttling, load balancing, and reverse proxy ro
   - **`Balancer` Interface**: Core contract exposing `Pick(backends []*Backend, clientIP string) *Backend`.
   - **Load Balancing Algorithms**:
     - **`RoundRobin`**: Atomic cyclic counter across healthy replicas (default).
-    - **`LeastConn`**: Selects replica with lowest active in-flight connection count.
+    - **`LeastConn`**: Selects replica with lowest active in-flight connection count. On ties, uses an atomic round-robin offset so idle-pool requests are spread evenly rather than always hitting index 0.
     - **`Random`**: Uniform pseudo-random distribution.
     - **`IPHash`**: FNV-1a client IP hashing for deterministic session stickiness.
   - **`Backend`**: Encapsulates upstream target URL, reverse proxy instance, active connection atomic gauge, and health state.
   - **`NewBalancer(algorithm)`**: Factory initializing balancers from `traffic-proxy.balance` labels.
 - **`internal/proxy/proxy.go`**:
-  - **`Config`**: Defines `MaxConcurrentRequests` (default: 1000) and `QueueTimeout` (default: 5s).
-  - **`BackendPool`**: Manages replica groups of `*Backend` instances associated with a host rule and an active `Balancer`.
-  - **`Router`**: Primary traffic routing engine containing a weighted semaphore (`*semaphore.Weighted`), metrics collector reference, read-write mutex, and a map of `*BackendPool` keyed by normalized hostname.
-  - **`RegisterBackend(hostRule, targetURL)` & `UpdateBackends(targets)`**: Registers single backends (accumulating into pools) and synchronizes multi-replica discovery target pools.
+  - **`Config`**: Defines `MaxConcurrentRequests` (default: 1000), `QueueTimeout` (default: 5s), and `TrustedProxyCIDRs` (CIDR list of upstream load balancers whose `X-Forwarded-For`/`X-Real-IP` headers are trusted for real client IP extraction).
+  - **`BackendPool`**: Manages replica groups of `*Backend` instances associated with a host rule and an active `Balancer`. Maintains a pre-filtered `healthyBackends` slice rebuilt only on mutation, eliminating per-request heap allocation in the hot `Pick` path.
+  - **`Router`**: Primary traffic routing engine. Maintains a URL-keyed `backendCache` so existing `*Backend` instances (and their `http.Transport` connection pools) are reused across `UpdateBackends` calls when the endpoint URL is unchanged, preventing keep-alive connection churn every discovery cycle.
+  - **`RegisterBackend(hostRule, targetURL)` & `UpdateBackends(targets)`**: Registers single backends (accumulating into pools) and synchronizes multi-replica discovery target pools. `UpdateBackends` scans ALL targets for a host group to pick the first non-empty `traffic-proxy.balance` label, ensuring the algorithm is consistent regardless of replica ordering.
   - **`ServeHTTP(w, req)`**:
     1. Increments `TotalRequests` counter.
     2. Enqueues the request into the semaphore with a timeout context (`QueueTimeout`).
@@ -169,10 +169,22 @@ Traffic management, concurrency throttling, load balancing, and reverse proxy ro
     5. Acquires semaphore slot and increments `ActiveConcurrency`. Releases slot upon completion.
     6. Normalizes `req.Host` (stripping port and converting to lowercase).
     7. Looks up `BackendPool`. If missing or empty, replies with HTTP `502 Bad Gateway`.
-    8. Invokes `pool.Pick(clientIP)` to select a healthy replica.
-    9. Atomically increments and decrements the selected backend's `ActiveConns`.
-    10. Forwards request via `backend.Proxy.ServeHTTP(w, req)`.
+    8. Extracts real client IP: when `RemoteAddr` belongs to a trusted CIDR, checks `X-Real-IP` then leftmost `X-Forwarded-For` for the originating IP. Falls back to `RemoteAddr` for untrusted peers.
+    9. Invokes `pool.Pick(clientIP)` to select a healthy replica.
+    10. Atomically increments and decrements the selected backend's `ActiveConns`.
+    11. Forwards request via `backend.Proxy.ServeHTTP(w, req)`.
   - **`NormalizeHost(host)`**: Exported helper utility extracting hostnames from host/port pairs and returning lowercase strings.
+
+#### internal/metrics/
+Thread-safe metrics collection and telemetry storage.
+
+- **`internal/metrics/metrics.go`**:
+  - **`MetricSnapshot`**: JSON-serializable telemetry payload holding `Timestamp`, `TotalRequests`, `ActiveConcurrency`, `QueuedRequests`, and `DiscoveredServices`.
+  - **`TelemetryRingBuffer`**: Thread-safe ring buffer utilizing bitwise power-of-two capacity masking (`writeIdx & mask`) for high-throughput slot placement without pointer reshuffling.
+  - **`Collector`**: Central metrics aggregator utilizing atomic primitives (`sync/atomic.Uint64` for total request counter, `sync/atomic.Int64` for active concurrency and queue gauges).
+  - **`Snapshot(discoveredCount int)`**: Takes an atomic reading of all metrics, appends the snapshot into the ring buffer, and returns the snapshot instance.
+
+
 
 #### internal/server/
 HTTP routing multiplexer and reverse proxy dispatch.
@@ -191,9 +203,8 @@ Static dashboard assets embedded into the Go executable.
 - **`ui/embed.go`**:
   - Exposes `Assets embed.FS` using the directive `//go:embed static/*`, compiling frontend templates directly into the binary.
 - **`ui/static/index.html`**:
-  - Single-page administrative dashboard built with Tailwind CSS, HTMX, and Chart.js.
-  - Displays baseline system metrics, route tables, concurrency throttling parameters, and Chart.js telemetry.
-  - Interactive/dynamic live SSE streaming is scheduled for implementation in Milestone 5.
+  - Single-page administrative dashboard styled with Tailwind CSS, HTMX, and Chart.js, structured into modular dark telemetry widgets (KPI matrices, radial donut gauges, vector spline charts, and digital status timers).
+  - Displays baseline system metrics, route tables, concurrency throttling parameters, and real-time Server-Sent Events (SSE) telemetry streaming.
 
 ---
 

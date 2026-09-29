@@ -362,3 +362,198 @@ func TestRouter_QueueTimeout(t *testing.T) {
 		t.Fatal("First request timed out unexpectedly")
 	}
 }
+
+// TestRouter_TrustedProxy_XForwardedFor verifies that when the peer IP is in a trusted
+// CIDR, the X-Forwarded-For header is used as the real client IP for IPHash routing.
+func TestRouter_TrustedProxy_XForwardedFor(t *testing.T) {
+	t.Parallel()
+
+	collector := metrics.NewCollector()
+	router := proxy.NewRouter(proxy.Config{
+		MaxConcurrentRequests: 10,
+		QueueTimeout:          1 * time.Second,
+		// Trust 127.0.0.1 — the address httptest uses for RemoteAddr
+		TrustedProxyCIDRs: []string{"127.0.0.1/32"},
+	}, collector)
+
+	var counts [2]atomic.Uint64
+	servers := make([]*httptest.Server, 2)
+	targets := make([]discovery.ServiceTarget, 2)
+
+	for i := 0; i < 2; i++ {
+		idx := i
+		servers[i] = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			counts[idx].Add(1)
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer servers[i].Close()
+
+		u, _ := url.Parse(servers[i].URL)
+		targets[i] = discovery.ServiceTarget{
+			HostRule:  "hash.local",
+			TargetURL: u,
+			Labels:    map[string]string{"traffic-proxy.balance": "ip-hash"},
+			Healthy:   true,
+			Enabled:   true,
+		}
+	}
+	router.UpdateBackends(targets)
+
+	// All 5 requests carry a fixed X-Forwarded-For IP → must all hit the same backend.
+	var firstHit int = -1
+	for i := 0; i < 5; i++ {
+		prev := [2]uint64{counts[0].Load(), counts[1].Load()}
+		req := httptest.NewRequest(http.MethodGet, "http://hash.local/", nil)
+		req.RemoteAddr = "127.0.0.1:54321"
+		req.Header.Set("X-Forwarded-For", "203.0.113.42")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		var hit int = -1
+		for j := 0; j < 2; j++ {
+			if counts[j].Load() > prev[j] {
+				hit = j
+				break
+			}
+		}
+		if hit == -1 {
+			t.Fatalf("Request %d did not hit any backend", i)
+		}
+		if firstHit == -1 {
+			firstHit = hit
+		} else if hit != firstHit {
+			t.Fatalf("IPHash routing changed backends on request %d (X-Forwarded-For not honoured)", i)
+		}
+	}
+}
+
+// TestRouter_UpdateBackends_TransportReuse verifies that repeated UpdateBackends calls
+// with the same endpoint URL reuse the existing Backend instance and its transport,
+// instead of allocating a new one each discovery cycle.
+func TestRouter_UpdateBackends_TransportReuse(t *testing.T) {
+	t.Parallel()
+
+	collector := metrics.NewCollector()
+	router := proxy.NewRouter(proxy.Config{
+		MaxConcurrentRequests: 10,
+		QueueTimeout:          1 * time.Second,
+	}, collector)
+
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+
+	u, _ := url.Parse(backend.URL)
+	target := discovery.ServiceTarget{
+		HostRule:  "reuse.local",
+		TargetURL: u,
+		Healthy:   true,
+		Enabled:   true,
+	}
+
+	router.UpdateBackends([]discovery.ServiceTarget{target})
+	backends1 := router.Pool("reuse.local").Backends()
+	if len(backends1) == 0 {
+		t.Fatal("Expected backend after first UpdateBackends")
+	}
+	first := backends1[0]
+
+	// Second call with identical URL — must reuse same *Backend.
+	router.UpdateBackends([]discovery.ServiceTarget{target})
+	backends2 := router.Pool("reuse.local").Backends()
+	if len(backends2) == 0 {
+		t.Fatal("Expected backend after second UpdateBackends")
+	}
+	second := backends2[0]
+
+	if first != second {
+		t.Fatal("UpdateBackends created a new Backend for unchanged URL — transport pool was discarded")
+	}
+}
+
+// TestRouter_UpdateBackends_ConsistentAlgorithm verifies that the balance label is
+// resolved from the first non-empty value across ALL replica targets, not just index 0.
+func TestRouter_UpdateBackends_ConsistentAlgorithm(t *testing.T) {
+	t.Parallel()
+
+	collector := metrics.NewCollector()
+	router := proxy.NewRouter(proxy.Config{
+		MaxConcurrentRequests: 10,
+		QueueTimeout:          1 * time.Second,
+	}, collector)
+
+	var counters [2]atomic.Uint64
+	servers := make([]*httptest.Server, 2)
+	for i := 0; i < 2; i++ {
+		idx := i
+		servers[i] = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			counters[idx].Add(1)
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer servers[i].Close()
+	}
+
+	u0, _ := url.Parse(servers[0].URL)
+	u1, _ := url.Parse(servers[1].URL)
+
+	// First target has NO balance label; second carries ip-hash.
+	// Consistent algorithm scan should find ip-hash from index 1.
+	targets := []discovery.ServiceTarget{
+		{HostRule: "algo.local", TargetURL: u0, Labels: map[string]string{}, Healthy: true, Enabled: true},
+		{HostRule: "algo.local", TargetURL: u1, Labels: map[string]string{"traffic-proxy.balance": "ip-hash"}, Healthy: true, Enabled: true},
+	}
+	router.UpdateBackends(targets)
+
+	// ip-hash with same client IP must always hit the same backend (stickiness).
+	var firstHit int = -1
+	for i := 0; i < 6; i++ {
+		prev := [2]uint64{counters[0].Load(), counters[1].Load()}
+		req := httptest.NewRequest(http.MethodGet, "http://algo.local/", nil)
+		req.RemoteAddr = "10.1.2.3:9999"
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		var hit int = -1
+		for j := 0; j < 2; j++ {
+			if counters[j].Load() > prev[j] {
+				hit = j
+				break
+			}
+		}
+		if hit == -1 {
+			t.Fatalf("Request %d: no backend was hit", i)
+		}
+		if firstHit == -1 {
+			firstHit = hit
+		} else if hit != firstHit {
+			t.Fatalf("Algorithm not sticky on request %d: balance label on non-zero index was ignored", i)
+		}
+	}
+}
+
+// TestLeastConn_TieBreaking verifies that when multiple backends share the minimum
+// connection count, the round-robin tiebreaker distributes sequential requests evenly.
+func TestLeastConn_TieBreaking(t *testing.T) {
+	t.Parallel()
+
+	balancer := proxy.NewBalancer("least-conn")
+	backends := createTestBackends(3)
+	// All backends start at 0 connections — pure tie scenario.
+
+	counts := make(map[*proxy.Backend]int)
+	for i := 0; i < 9; i++ {
+		picked := balancer.Pick(backends, "")
+		if picked == nil {
+			t.Fatalf("Iteration %d: expected non-nil backend", i)
+		}
+		counts[picked]++
+	}
+
+	// With all backends tied, each must receive exactly 3 of the 9 requests.
+	for i, b := range backends {
+		if counts[b] != 3 {
+			t.Fatalf("Backend %d received %d requests; expected 3 (LeastConn tiebreaker not distributing evenly)", i, counts[b])
+		}
+	}
+}

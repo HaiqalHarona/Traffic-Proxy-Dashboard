@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"golang.org/x/sync/errgroup"
 )
 
 // ServiceTarget represents a discovered downstream backend.
@@ -93,22 +95,35 @@ func (d *DockerProvider) Start(ctx context.Context) error {
 	}
 }
 
+// probeResult carries the TCP reachability outcome for a single container.
+type probeResult struct {
+	index     int
+	reachable bool
+	probeErr  error
+}
+
 // Scan performs a single inspection of ALL active Docker containers.
 //
 // Every running container is catalogued regardless of labels. Containers with
 // traffic-proxy.enable=true or a traffic-proxy.rule label are marked Enabled=true.
 // Unlabelled containers default to Enabled=false (ready for the UI toggle).
 //
-// A non-blocking 2-second TCP probe tests reachability. Unreachable containers
-// are included in the catalogue with Reachable=false and DiscoveryError set —
-// they are never silently dropped.
+// TCP probes run concurrently (bounded at 20 workers) with a 2-second deadline
+// each. Unreachable containers are included in the catalogue with Reachable=false
+// and DiscoveryError set — they are never silently dropped.
 func (d *DockerProvider) Scan(ctx context.Context) error {
 	containers, err := d.cli.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	targets := make([]ServiceTarget, 0, len(containers))
+	// --- Build partial targets without probing yet -----------------------
+	type partialTarget struct {
+		target    ServiceTarget
+		needProbe bool
+	}
+	partial := make([]partialTarget, 0, len(containers))
+
 	for _, c := range containers {
 		var containerName string
 		if len(c.Names) > 0 {
@@ -119,23 +134,32 @@ func (d *DockerProvider) Scan(ctx context.Context) error {
 			cleanName = cleanName[1:]
 		}
 
-		// --- Derive host rule -------------------------------------------------
+		// --- Derive host rule -------------------------------------------
 		// Prefer the explicit traffic-proxy.rule label; fall back to container name.
 		rule := c.Labels["traffic-proxy.rule"]
 		if rule == "" {
 			rule = cleanName
 		}
 
-		// Enabled when explicitly opted-in via label or a rule label is present.
+		// Improvement 3: explicit enable=false always wins, even when a rule label exists.
 		_, hasRule := c.Labels["traffic-proxy.rule"]
-		enabled := c.Labels["traffic-proxy.enable"] == "true" || hasRule
+		explicitFalse := c.Labels["traffic-proxy.enable"] == "false"
+		enabled := !explicitFalse && (c.Labels["traffic-proxy.enable"] == "true" || hasRule)
 
-		// --- Resolve container IP ---------------------------------------------
+		// --- Resolve container IP (improvement 2: deterministic network selection) --------
+		// Sort network names so the resolved IP is stable across scans for
+		// multi-network containers, preventing backend flapping.
 		var targetIP string
-		if c.NetworkSettings != nil {
-			for _, netSettings := range c.NetworkSettings.Networks {
-				if netSettings != nil && netSettings.IPAddress != "" {
-					targetIP = netSettings.IPAddress
+		if c.NetworkSettings != nil && len(c.NetworkSettings.Networks) > 0 {
+			netNames := make([]string, 0, len(c.NetworkSettings.Networks))
+			for name := range c.NetworkSettings.Networks {
+				netNames = append(netNames, name)
+			}
+			sort.Strings(netNames)
+			for _, name := range netNames {
+				ns := c.NetworkSettings.Networks[name]
+				if ns != nil && ns.IPAddress != "" {
+					targetIP = ns.IPAddress
 					break
 				}
 			}
@@ -145,7 +169,7 @@ func (d *DockerProvider) Scan(ctx context.Context) error {
 			targetIP = cleanName
 		}
 
-		// --- Resolve port -----------------------------------------------------
+		// --- Resolve port -----------------------------------------------
 		portStr := c.Labels["traffic-proxy.port"]
 		var targetPort int
 		if portStr != "" {
@@ -156,47 +180,86 @@ func (d *DockerProvider) Scan(ctx context.Context) error {
 			targetPort = 80
 		}
 
-		// --- Build target URL -------------------------------------------------
+		// --- Build target URL -------------------------------------------
 		rawURL := fmt.Sprintf("http://%s:%d", targetIP, targetPort)
 		targetURL, parseErr := url.Parse(rawURL)
 		if parseErr != nil {
-			targets = append(targets, ServiceTarget{
-				ID:             c.ID,
-				Name:           containerName,
-				Host:           targetIP,
-				Port:           targetPort,
-				HostRule:       rule,
-				Labels:         c.Labels,
-				Healthy:        false,
-				Reachable:      false,
-				Enabled:        enabled,
-				CreatedAt:      time.Unix(c.Created, 0),
-				DiscoveryError: fmt.Sprintf("invalid target URL %q: %v", rawURL, parseErr),
+			partial = append(partial, partialTarget{
+				target: ServiceTarget{
+					ID:             c.ID,
+					Name:           containerName,
+					Host:           targetIP,
+					Port:           targetPort,
+					HostRule:       rule,
+					Labels:         c.Labels,
+					Healthy:        false,
+					Reachable:      false,
+					Enabled:        enabled,
+					CreatedAt:      time.Unix(c.Created, 0),
+					DiscoveryError: fmt.Sprintf("invalid target URL %q: %v", rawURL, parseErr),
+				},
+				needProbe: false,
 			})
 			continue
 		}
 
-		// --- TCP reachability probe -------------------------------------------
-		reachable, probeErr := probeReachable(ctx, targetIP, targetPort)
+		partial = append(partial, partialTarget{
+			target: ServiceTarget{
+				ID:        c.ID,
+				Name:      containerName,
+				Host:      targetIP,
+				Port:      targetPort,
+				HostRule:  rule,
+				TargetURL: targetURL,
+				Labels:    c.Labels,
+				Healthy:   c.State == "running", // will be ANDed with Reachable after probe
+				Reachable: false,
+				Enabled:   enabled,
+				CreatedAt: time.Unix(c.Created, 0),
+			},
+			needProbe: true,
+		})
+	}
 
-		target := ServiceTarget{
-			ID:        c.ID,
-			Name:      containerName,
-			Host:      targetIP,
-			Port:      targetPort,
-			HostRule:  rule,
-			TargetURL: targetURL,
-			Labels:    c.Labels,
-			Healthy:   c.State == "running" && reachable,
-			Reachable: reachable,
-			Enabled:   enabled,
-			CreatedAt: time.Unix(c.Created, 0),
-		}
-		if probeErr != nil {
-			target.DiscoveryError = fmt.Sprintf("unreachable (%s:%d): %v", targetIP, targetPort, probeErr)
-		}
+	// Improvement 1: concurrent TCP probes with a bounded worker pool (max 20).
+	results := make([]probeResult, len(partial))
+	const maxWorkers = 20
 
-		targets = append(targets, target)
+	g, gCtx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, maxWorkers)
+
+	for i, p := range partial {
+		if !p.needProbe {
+			results[i] = probeResult{index: i, reachable: false}
+			continue
+		}
+		i, p := i, p // capture loop vars
+		g.Go(func() error {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			reachable, probeErr := probeReachable(gCtx, p.target.Host, p.target.Port)
+			results[i] = probeResult{index: i, reachable: reachable, probeErr: probeErr}
+			return nil
+		})
+	}
+	// We intentionally ignore the group error — individual probe failures are
+	// surfaced per-container in DiscoveryError, not as a Scan-level failure.
+	_ = g.Wait()
+
+	// Apply probe results back onto partial targets.
+	targets := make([]ServiceTarget, 0, len(partial))
+	for i, p := range partial {
+		t := p.target
+		if p.needProbe {
+			r := results[i]
+			t.Reachable = r.reachable
+			t.Healthy = t.Healthy && r.reachable
+			if r.probeErr != nil {
+				t.DiscoveryError = fmt.Sprintf("unreachable (%s:%d): %v", t.Host, t.Port, r.probeErr)
+			}
+		}
+		targets = append(targets, t)
 	}
 
 	d.mu.Lock()
