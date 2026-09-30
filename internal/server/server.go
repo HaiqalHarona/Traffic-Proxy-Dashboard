@@ -116,14 +116,27 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 				statusDotClass, statusTitle,
 			)
 
+			systemStatusColor := "text-emerald-400"
+			systemStatusText := "ONLINE"
+			if !snapshot.SystemHealthy {
+				systemStatusColor = "text-rose-400"
+				if serviceCount == 0 {
+					systemStatusText = "EMPTY"
+				} else {
+					systemStatusText = "DEGRADED"
+				}
+			}
+
 			// 1. Send HTMX Out-of-Band (OOB) HTML snippet for DOM swaps
 			oobHTML := fmt.Sprintf(
 				`%s`+
-					`<div id="metric-total-requests" hx-swap-oob="outerHTML" class="text-3xl font-bold font-mono text-white mt-2">%d</div>`+
-					`<div id="metric-active-concurrency" hx-swap-oob="outerHTML" class="text-3xl font-bold font-mono text-emerald-400 mt-2">%d</div>`+
-					`<div id="metric-discovered-services" hx-swap-oob="outerHTML" class="text-3xl font-bold font-mono text-sky-400 mt-2">%d</div>`+
-					`<div id="metric-queued-requests" hx-swap-oob="outerHTML" class="text-3xl font-bold font-mono text-amber-400 mt-2">%d</div>`,
-				statusDotHTML, snapshot.TotalRequests, snapshot.ActiveConcurrency, snapshot.DiscoveredServices, snapshot.QueuedRequests,
+					`<div id="metric-total-requests" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-active-concurrency" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-healthy-services" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-discovered-services" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-queued-requests" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-amber-400 mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-system-status" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono %s mt-1 truncate w-full">%s</div>`,
+				statusDotHTML, snapshot.TotalRequests, snapshot.ActiveConcurrency, snapshot.HealthyServices, snapshot.DiscoveredServices, snapshot.QueuedRequests, systemStatusColor, systemStatusText,
 			)
 			fmt.Fprintf(w, "event: metrics\ndata: %s\n\n", oobHTML)
 

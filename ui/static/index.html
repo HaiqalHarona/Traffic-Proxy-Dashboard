@@ -151,43 +151,43 @@
                     <div hx-ext="sse" sse-connect="/api/events" sse-swap="metrics" class="grid grid-cols-3 divide-x divide-y divide-[#20222a] border border-[#20222a] my-3 bg-[#0e0f14]">
                         <!-- Cell 1: Total Requests (LEADS CREATED) -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
-                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">LEADS CREATED</span>
-                            <div id="metric-total-requests" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">424</div>
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">TOTAL REQUESTS</span>
+                            <div id="metric-total-requests" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">0</div>
                             <span class="text-[10px] sm:text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
                         </div>
 
                         <!-- Cell 2: Active Concurrency (POTENTIALS CREATED) -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
-                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">POTENTIALS CREATED</span>
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">ACTIVE CONCURRENCY</span>
                             <div id="metric-active-concurrency" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">159</div>
                             <span class="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
                         </div>
 
                         <!-- Cell 3: Revenue Generated (REVENUE GENERATED) -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
-                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">REVENUE GENERATED</span>
-                            <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-1 truncate w-full">$3,630,000</div>
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">HEALTHY SERVICES</span>
+                            <div id="metric-healthy-services" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">0</div>
                             <span class="text-[10px] sm:text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
                         </div>
 
                         <!-- Cell 4: Discovered Services (SALES WON) -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
-                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">SALES WON</span>
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">DISCOVERED SERVICES</span>
                             <div id="metric-discovered-services" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">76</div>
                             <span class="text-[10px] sm:text-[11px] font-mono text-rose-400 font-semibold mt-0.5">6% &darr;</span>
                         </div>
 
                         <!-- Cell 5: Queued Requests (CREATING DEALS) -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
-                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">CREATING DEALS</span>
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">QUEUED REQUESTS</span>
                             <div id="metric-queued-requests" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-amber-400 mt-1 truncate w-full">159</div>
                             <span class="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
                         </div>
 
                         <!-- Cell 6: Progressing Deals (PROGRESSING DEALS) -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
-                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">PROGRESSING DEALS</span>
-                            <div class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">159</div>
+                            <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">SYSTEM STATUS</span>
+                            <div id="metric-system-status" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">ONLINE</div>
                             <span class="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
                         </div>
                     </div>
@@ -202,9 +202,9 @@
                 <div class="col-span-12 lg:col-span-4 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                     <!-- Widget Header -->
                     <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
-                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
-                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">LEADS CREATED</h2>
-                        <span class="text-[10px] font-mono text-zinc-500">MTH</span>
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">METRIC</span>
+                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">CONCURRENCY USAGE</h2>
+                        <span class="text-[10px] font-mono text-zinc-500">LIVE</span>
                     </div>
 
                     <!-- Content Layout: Left Ratio & Leaderboard, Right Donut (Responsive stack on xs) -->
@@ -212,15 +212,15 @@
                         <!-- Left Side: Big Ratio and Mini Bars -->
                         <div class="flex-1 w-full space-y-2.5">
                             <div class="text-left font-mono">
-                                <span class="text-2xl sm:text-3xl font-extrabold text-white">128</span>
-                                <span class="text-zinc-500 text-lg font-normal"> / 300</span>
+                                <span id="concurrency-ratio-val" class="text-2xl sm:text-3xl font-extrabold text-white">0</span>
+                                <span class="text-zinc-500 text-lg font-normal"> / 5000</span>
                             </div>
 
                             <div class="space-y-1.5 font-mono text-[10px]">
-                                <span class="text-zinc-400 font-bold uppercase tracking-wider block">COMPANY LEADERBOARD</span>
+                                <span class="text-zinc-400 font-bold uppercase tracking-wider block">TOP ACTIVE ROUTES (MOCK)</span>
                                 <!-- Bar 1: Logan (Green) -->
                                 <div class="flex items-center justify-between text-zinc-300">
-                                    <span class="w-12 truncate">Logan</span>
+                                    <span class="w-12 truncate">app.local</span>
                                     <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
                                         <div class="bg-emerald-500 h-full" style="width: 87.5%"></div>
                                     </div>
@@ -228,7 +228,7 @@
                                 </div>
                                 <!-- Bar 2: Morris (White) -->
                                 <div class="flex items-center justify-between text-zinc-300">
-                                    <span class="w-12 truncate">Morris</span>
+                                    <span class="w-12 truncate">api.local</span>
                                     <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
                                         <div class="bg-white h-full" style="width: 74.67%"></div>
                                     </div>
@@ -236,7 +236,7 @@
                                 </div>
                                 <!-- Bar 3: Sara (Coral) -->
                                 <div class="flex items-center justify-between text-zinc-300">
-                                    <span class="w-12 truncate">Sara</span>
+                                    <span class="w-12 truncate">cdn.local</span>
                                     <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
                                         <div class="bg-rose-500 h-full" style="width: 40%"></div>
                                     </div>
@@ -260,7 +260,7 @@
 
                     <!-- Widget Subtitle -->
                     <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                        West - Monthly
+                        Global - Live Real-Time
                     </div>
                 </div>
 
@@ -268,8 +268,8 @@
                 <div class="col-span-12 lg:col-span-3 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                     <!-- Widget Header -->
                     <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
-                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
-                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">LEADS CREATED</h2>
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">METRIC</span>
+                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">NETWORK SUCCESS RATE</h2>
                     </div>
 
                     <!-- Content Layout: Centered Donut Gauge -->
@@ -277,18 +277,18 @@
                         <div class="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
                             <svg class="w-28 h-28 sm:w-32 sm:h-32 gauge-svg" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                <circle cx="50" cy="50" r="38" stroke="#f43f5e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="191" stroke-linecap="round" />
+                                <circle id="queue-util-circle" cx="50" cy="50" r="38" stroke="#f59e0b" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="238.76" stroke-linecap="round" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                                 <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                <span class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">20%</span>
+                                <span id="queue-util-pct" class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">0%</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Widget Subtitle -->
                     <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                        Logan - Weekly
+                        Global - Live Capacity
                     </div>
                 </div>
 
@@ -310,11 +310,11 @@
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                                 <div class="flex items-center space-x-3">
                                     <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">KPI</span>
-                                    <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">SALES WON</h2>
+                                    <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">TRAFFIC TRENDS</h2>
                                 </div>
                                 <div class="flex items-center space-x-2 text-[10px] font-mono text-cyan-400">
                                     <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-                                    <span>Company</span>
+                                    <span>Concurrency</span>
                                 </div>
                             </div>
 
@@ -328,7 +328,7 @@
                                         <span>&darr;</span>
                                     </div>
                                     <div class="text-[10px] font-mono text-zinc-400 mt-1.5">
-                                        Company - This Quarter
+                                        Gateway - Live Feed
                                     </div>
                                 </div>
 
@@ -347,8 +347,8 @@
                         <div class="col-span-12 md:col-span-4 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
-                                <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
-                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">LEADS CREATED</h2>
+                                <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">METRIC</span>
+                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">QUEUE UTILIZATION</h2>
                             </div>
 
                             <!-- Content Layout: Centered Donut Gauge -->
@@ -356,18 +356,18 @@
                                 <div class="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
                                     <svg class="w-28 h-28 sm:w-32 sm:h-32 gauge-svg" viewBox="0 0 100 100">
                                         <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                        <circle cx="50" cy="50" r="38" stroke="#eab308" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="164.74" stroke-linecap="round" />
+                                        <circle id="health-ratio-circle" cx="50" cy="50" r="38" stroke="#10b981" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="238.76" stroke-linecap="round" />
                                     </svg>
                                     <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                                         <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                        <span class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">31%</span>
+                                        <span id="health-ratio-pct" class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">0%</span>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Widget Subtitle -->
                             <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                                Company - Weekly
+                                Services - Live Status
                             </div>
                         </div>
 
@@ -380,8 +380,8 @@
                         <div class="col-span-12 md:col-span-6 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
-                                <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">TARGET</span>
-                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">LEADS CREATED</h2>
+                                <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">METRIC</span>
+                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">HEALTH RATIO</h2>
                                 <span class="text-[10px] font-mono text-zinc-500">QTR</span>
                             </div>
 
@@ -390,15 +390,15 @@
                                 <!-- Left Side: Big Ratio and Mini Bars -->
                                 <div class="flex-1 w-full space-y-2">
                                     <div class="text-left font-mono">
-                                        <span class="text-2xl sm:text-3xl font-extrabold text-white">424</span>
-                                        <span class="text-zinc-500 text-lg font-normal"> / 450</span>
+                                        <span class="text-2xl sm:text-3xl font-extrabold text-white">99.9</span>
+                                        <span class="text-zinc-500 text-lg font-normal"> %</span>
                                     </div>
 
                                     <div class="space-y-1 font-mono text-[10px]">
-                                        <span class="text-zinc-400 font-bold uppercase tracking-wider block">COMPANY LEADERBOARD</span>
+                                        <span class="text-zinc-400 font-bold uppercase tracking-wider block">TOP ACTIVE ROUTES (MOCK)</span>
                                         <!-- Bar 1: Morris (White) -->
                                         <div class="flex items-center justify-between text-zinc-300">
-                                            <span class="w-12 truncate">Morris</span>
+                                            <span class="w-12 truncate">api.local</span>
                                             <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
                                                 <div class="bg-white h-full" style="width: 88.25%"></div>
                                             </div>
@@ -406,7 +406,7 @@
                                         </div>
                                         <!-- Bar 2: Sara (White) -->
                                         <div class="flex items-center justify-between text-zinc-300">
-                                            <span class="w-12 truncate">Sara</span>
+                                            <span class="w-12 truncate">cdn.local</span>
                                             <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
                                                 <div class="bg-white h-full" style="width: 84%"></div>
                                             </div>
@@ -414,7 +414,7 @@
                                         </div>
                                         <!-- Bar 3: Don (White) -->
                                         <div class="flex items-center justify-between text-zinc-300">
-                                            <span class="w-12 truncate">Don</span>
+                                            <span class="w-12 truncate">web.local</span>
                                             <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
                                                 <div class="bg-white h-full" style="width: 78%"></div>
                                             </div>
@@ -438,7 +438,7 @@
 
                             <!-- Widget Subtitle -->
                             <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                                West - Quarterly
+                                Edge - Moving Average (Mock)
                             </div>
                         </div>
 
@@ -447,50 +447,50 @@
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                                 <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">KPI</span>
-                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">PERFORMANCE METRICS</h2>
-                                <span class="text-[10px] font-mono text-zinc-500">EAST</span>
+                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">NODE METRICS (MOCK)</h2>
+                                <span class="text-[10px] font-mono text-zinc-500">LOCAL</span>
                             </div>
 
                             <!-- 2x3 Matrix Grid Container -->
                             <div class="grid grid-cols-3 divide-x divide-y divide-[#20222a] border border-[#20222a] my-2 bg-[#0e0f14]">
                                 <!-- Cell 1 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">LEADS CREATED</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">TOTAL REQUESTS</span>
                                     <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">432</div>
                                     <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">1% &darr;</span>
                                 </div>
 
                                 <!-- Cell 2 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">POTENTIALS CREATED</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">ACTIVE CONCURRENCY</span>
                                     <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">159</div>
                                     <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
                                 </div>
 
                                 <!-- Cell 3 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">REVENUE GENERATED</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">HEALTHY SERVICES</span>
                                     <div class="text-sm sm:text-lg lg:text-xl font-bold font-mono text-white mt-0.5 truncate w-full">$3,585,000</div>
                                     <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">5% &darr;</span>
                                 </div>
 
                                 <!-- Cell 4 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">SALES WON</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">DISCOVERED SERVICES</span>
                                     <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">75</div>
                                     <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">10% &darr;</span>
                                 </div>
 
                                 <!-- Cell 5 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">CREATING DEALS</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">QUEUED REQUESTS</span>
                                     <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">159</div>
                                     <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
                                 </div>
 
                                 <!-- Cell 6 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">PROGRESSING DEALS</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">SYSTEM STATUS</span>
                                     <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">159</div>
                                     <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
                                 </div>
@@ -498,7 +498,7 @@
 
                             <!-- Widget Subtitle -->
                             <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                                East - This Quarter
+                                Server - Real-Time Stats
                             </div>
                         </div>
 
@@ -511,11 +511,11 @@
                 <div class="col-span-12 lg:col-span-3 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md h-full">
                     <!-- Widget Header -->
                     <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
-                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">CONTEST</span>
-                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase truncate">LEADS CREA...</h2>
+                        <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">GATEWAY</span>
+                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase truncate">UPTIME</h2>
                     </div>
 
-                    <!-- Top Neon Green Radial Donut Gauge (100% Duration Past) -->
+                    <!-- Top Neon Green Radial Donut Gauge (100% Status) -->
                     <div class="my-3 flex items-center justify-center">
                         <div class="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
                             <svg class="w-28 h-28 sm:w-32 sm:h-32 gauge-svg" viewBox="0 0 100 100">
@@ -523,8 +523,8 @@
                                 <circle cx="50" cy="50" r="38" stroke="#22c55e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="0" stroke-linecap="round" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Duration Past</span>
-                                <span class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">100%</span>
+                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Status</span>
+                                <span class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">OK</span>
                             </div>
                         </div>
                     </div>
@@ -546,7 +546,7 @@
                     <!-- Leaderboard Table with Avatars & Rankings -->
                     <div class="my-2 space-y-2 font-mono flex-1 flex flex-col justify-center">
                         <div class="text-[10px] text-zinc-400 font-bold uppercase tracking-wider pb-1 border-b border-[#20222a]">
-                            LEADERBOARD
+                            ACTIVE RULES
                         </div>
 
                         <!-- Item 1: Morris (1st) -->
@@ -555,7 +555,7 @@
                                 <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-600 to-amber-300 flex items-center justify-center text-[10px] font-bold text-black border border-amber-300">
                                     M
                                 </div>
-                                <span class="text-zinc-200 font-medium truncate">Morris</span>
+                                <span class="text-zinc-200 font-medium truncate">api.local</span>
                             </div>
                             <div class="flex items-center space-x-2 sm:space-x-3">
                                 <span class="text-zinc-400 font-semibold">1568</span>
@@ -569,7 +569,7 @@
                                 <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-rose-600 to-rose-300 flex items-center justify-center text-[10px] font-bold text-white border border-rose-300">
                                     A
                                 </div>
-                                <span class="text-zinc-200 font-medium truncate">Allene</span>
+                                <span class="text-zinc-200 font-medium truncate">auth.local</span>
                             </div>
                             <div class="flex items-center space-x-2 sm:space-x-3">
                                 <span class="text-zinc-400 font-semibold">166</span>
@@ -583,7 +583,7 @@
                                 <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-sky-600 to-sky-300 flex items-center justify-center text-[10px] font-bold text-white border border-sky-300">
                                     D
                                 </div>
-                                <span class="text-zinc-200 font-medium truncate">Don</span>
+                                <span class="text-zinc-200 font-medium truncate">web.local</span>
                             </div>
                             <div class="flex items-center space-x-2 sm:space-x-3">
                                 <span class="text-zinc-400 font-semibold">151</span>
@@ -597,7 +597,7 @@
                                 <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-600 to-emerald-300 flex items-center justify-center text-[10px] font-bold text-black border border-emerald-300">
                                     S
                                 </div>
-                                <span class="text-zinc-200 font-medium truncate">Sara</span>
+                                <span class="text-zinc-200 font-medium truncate">cdn.local</span>
                             </div>
                             <div class="flex items-center space-x-2 sm:space-x-3">
                                 <span class="text-zinc-400 font-semibold">146</span>
@@ -608,7 +608,7 @@
 
                     <!-- Widget Subtitle -->
                     <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                        Gateway - Live Leaderboard
+                        Gateway - Active Rules (Mock)
                     </div>
                 </div>
 
@@ -1002,22 +1002,31 @@
         window.trafficChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['2019-01-01', '2019-01-08', '2019-01-15', '2019-01-22', '2019-01-29', '2019-02-05', '2019-02-12', '2019-02-19', '2019-02-26', '2019-03-05', '2019-03-12', '2019-03-19', '2019-03-26', '2019-03-31'],
+                
+                labels: ['12:00', '12:05', '12:10', '12:15', '12:20', '12:25', '12:30', '12:35', '12:40', '12:45', '12:50', '12:55', '13:00', '13:05', '13:10', '13:15', '13:20', '13:25', '13:30', '13:35'],
                 datasets: [
                     {
-                        label: 'Company',
-                        data: [5, 6, 5, 7, 11, 4, 4, 8, 5, 5, 11, 6, 0],
-                        borderColor: '#06b6d4',
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        pointBackgroundColor: '#06b6d4',
-                        pointBorderColor: '#0b0c10',
-                        pointBorderWidth: 1.5,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
-                        tension: 0.35
+                        label: 'Active Concurrency',
+                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                        fill: true,
+                        borderWidth: 1.5,
+                        pointRadius: 2,
+                        tension: 0.2
+                    },
+                    {
+                        label: 'Queued Requests',
+                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                        fill: true,
+                        borderWidth: 1.5,
+                        pointRadius: 2,
+                        tension: 0.2
                     }
                 ]
+
             },
             options: {
                 responsive: true,
@@ -1057,14 +1066,18 @@
                     const timeLabel = new Date().toLocaleTimeString();
 
                     const chart = window.trafficChart;
-                    if (chart.data.labels.length > 20) {
+                    
+                    if (chart.data.labels.length > 25) {
                         chart.data.labels.shift();
                         chart.data.datasets[0].data.shift();
+                        chart.data.datasets[1].data.shift();
                     }
 
                     chart.data.labels.push(timeLabel);
                     chart.data.datasets[0].data.push(data.active_concurrency || 0);
+                    chart.data.datasets[1].data.push(data.queued_requests || 0);
                     chart.update('none');
+
 
                     // Dynamic status dot beside SanProx logo
                     const dot = document.getElementById('gateway-status-dot');
@@ -1078,20 +1091,55 @@
                         }
                     }
 
+                    
                     // Update hero chart metric
                     const hero = document.getElementById('chart-hero-active');
-                    if (hero) hero.textContent = data.active_concurrency || 0;
+                    if (hero) hero.textContent = data.total_requests || 0;
 
                     // Update Concurrency utilization gauge
-                    const pct = Math.min(100, Math.round(((data.active_concurrency || 0) / 5000) * 100));
-                    const circle = document.getElementById('gauge-concurrency-circle');
-                    const pctLabel = document.getElementById('gauge-concurrency-pct');
-                    if (circle) {
-                        const offset = 238.76 - (238.76 * (pct || 42) / 100);
-                        circle.style.strokeDashoffset = offset;
+                    const concPct = Math.min(100, Math.round(((data.active_concurrency || 0) / 5000) * 100));
+                    const concCircle = document.getElementById('gauge-concurrency-circle');
+                    const concPctLabel = document.getElementById('gauge-concurrency-pct');
+                    const concRatioVal = document.getElementById('concurrency-ratio-val');
+                    if (concCircle) {
+                        const offset = 238.76 - (238.76 * (concPct) / 100);
+                        concCircle.style.strokeDashoffset = offset;
                     }
-                    if (pctLabel && pct > 0) {
-                        pctLabel.textContent = `${pct}%`;
+                    if (concPctLabel) {
+                        concPctLabel.textContent = `${concPct}%`;
+                    }
+                    if (concRatioVal) {
+                        concRatioVal.textContent = data.active_concurrency || 0;
+                    }
+
+                    // Update Queue Utilization
+                    const qPct = Math.min(100, Math.round(((data.queued_requests || 0) / 100) * 100));
+                    const qCircle = document.getElementById('queue-util-circle');
+                    const qPctLabel = document.getElementById('queue-util-pct');
+                    if (qCircle) {
+                        const offset = 238.76 - (238.76 * (qPct) / 100);
+                        qCircle.style.strokeDashoffset = offset;
+                    }
+                    if (qPctLabel) {
+                        qPctLabel.textContent = `${qPct}%`;
+                    }
+
+                    // Update Health Ratio
+                    let hPct = 0;
+                    if (data.discovered_services > 0) {
+                        hPct = Math.round((data.healthy_services / data.discovered_services) * 100);
+                    }
+                    const hCircle = document.getElementById('health-ratio-circle');
+                    const hPctLabel = document.getElementById('health-ratio-pct');
+                    if (hCircle) {
+                        const offset = 238.76 - (238.76 * (hPct) / 100);
+                        hCircle.style.strokeDashoffset = offset;
+                        // Change color based on health
+                        hCircle.setAttribute('stroke', hPct === 100 ? '#10b981' : (hPct > 0 ? '#f59e0b' : '#f43f5e'));
+                    }
+                    if (hPctLabel) {
+                        hPctLabel.textContent = `${hPct}%`;
+                    }
                     }
 
                 } catch (err) {
@@ -1109,13 +1157,27 @@
             }
         });
 
-        // Digital countdown timer ticking emulation
-        let secondsLeft = 5;
+        
+        // Digital Uptime counter ticking emulation
+        let secondsUp = 0;
         setInterval(() => {
-            secondsLeft = (secondsLeft <= 0) ? 5 : secondsLeft - 1;
-            const secEl = document.getElementById('time-secs');
-            if (secEl) secEl.textContent = secondsLeft;
+            secondsUp++;
+            const days = Math.floor(secondsUp / 86400);
+            const hrs = Math.floor((secondsUp % 86400) / 3600);
+            const mins = Math.floor((secondsUp % 3600) / 60);
+            const secs = secondsUp % 60;
+            
+            const dEl = document.getElementById('time-days');
+            const hEl = document.getElementById('time-hrs');
+            const mEl = document.getElementById('time-mins');
+            const sEl = document.getElementById('time-secs');
+            
+            if (dEl) dEl.textContent = days;
+            if (hEl) hEl.textContent = hrs;
+            if (mEl) mEl.textContent = mins;
+            if (sEl) sEl.textContent = secs;
         }, 1000);
+
 
         // Environment Detection & Controls
         const SANPROX_ENV = "__SANPROX_ENVIRONMENT__";
