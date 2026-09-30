@@ -38,7 +38,12 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 		slog.Error("Failed to locate embedded UI assets", "error", subErr)
 		os.Exit(1)
 	}
-	fileServer := http.FileServer(http.FS(subFS))
+	var fileServer http.Handler
+	if cfg.IsDevelopment() {
+		fileServer = http.FileServer(http.Dir("ui/static"))
+	} else {
+		fileServer = http.FileServer(http.FS(subFS))
+	}
 	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
 
 	// Read embedded index.html and inject runtime environment
@@ -51,6 +56,13 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if cfg.IsDevelopment() {
+			if b, err := os.ReadFile("ui/static/index.html"); err == nil {
+				liveContent := bytes.ReplaceAll(b, []byte("__SANPROX_ENVIRONMENT__"), []byte(cfg.Environment))
+				_, _ = w.Write(liveContent)
+				return
+			}
+		}
 		_, _ = w.Write(indexContent)
 	})
 
