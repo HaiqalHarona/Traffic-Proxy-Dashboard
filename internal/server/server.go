@@ -38,7 +38,12 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 		slog.Error("Failed to locate embedded UI assets", "error", subErr)
 		os.Exit(1)
 	}
-	fileServer := http.FileServer(http.FS(subFS))
+	var fileServer http.Handler
+	if cfg.IsDevelopment() {
+		fileServer = http.FileServer(http.Dir("ui/static"))
+	} else {
+		fileServer = http.FileServer(http.FS(subFS))
+	}
 	r.Handle("/static/*", http.StripPrefix("/static/", fileServer))
 
 	// Read embedded index.html and inject runtime environment
@@ -51,6 +56,13 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if cfg.IsDevelopment() {
+			if b, err := os.ReadFile("ui/static/index.html"); err == nil {
+				liveContent := bytes.ReplaceAll(b, []byte("__SANPROX_ENVIRONMENT__"), []byte(cfg.Environment))
+				_, _ = w.Write(liveContent)
+				return
+			}
+		}
 		_, _ = w.Write(indexContent)
 	})
 
@@ -116,14 +128,27 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 				statusDotClass, statusTitle,
 			)
 
+			systemStatusColor := "text-emerald-400"
+			systemStatusText := "ONLINE"
+			if !snapshot.SystemHealthy {
+				systemStatusColor = "text-rose-400"
+				if serviceCount == 0 {
+					systemStatusText = "EMPTY"
+				} else {
+					systemStatusText = "DEGRADED"
+				}
+			}
+
 			// 1. Send HTMX Out-of-Band (OOB) HTML snippet for DOM swaps
 			oobHTML := fmt.Sprintf(
 				`%s`+
-					`<div id="metric-total-requests" hx-swap-oob="outerHTML" class="text-3xl font-bold font-mono text-white mt-2">%d</div>`+
-					`<div id="metric-active-concurrency" hx-swap-oob="outerHTML" class="text-3xl font-bold font-mono text-emerald-400 mt-2">%d</div>`+
-					`<div id="metric-discovered-services" hx-swap-oob="outerHTML" class="text-3xl font-bold font-mono text-sky-400 mt-2">%d</div>`+
-					`<div id="metric-queued-requests" hx-swap-oob="outerHTML" class="text-3xl font-bold font-mono text-amber-400 mt-2">%d</div>`,
-				statusDotHTML, snapshot.TotalRequests, snapshot.ActiveConcurrency, snapshot.DiscoveredServices, snapshot.QueuedRequests,
+					`<div id="metric-total-requests" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-active-concurrency" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-healthy-services" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-discovered-services" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-queued-requests" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-amber-400 mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-system-status" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono %s mt-1 truncate w-full">%s</div>`,
+				statusDotHTML, snapshot.TotalRequests, snapshot.ActiveConcurrency, snapshot.HealthyServices, snapshot.DiscoveredServices, snapshot.QueuedRequests, systemStatusColor, systemStatusText,
 			)
 			fmt.Fprintf(w, "event: metrics\ndata: %s\n\n", oobHTML)
 

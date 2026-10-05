@@ -21,10 +21,15 @@ import (
 
 // ConfigResponse returns gateway environment and runtime configuration for the UI.
 type ConfigResponse struct {
-	AppName       string `json:"app_name"`
-	Environment   string `json:"environment"`
-	IsDevelopment bool   `json:"is_development"`
-	Version       string `json:"version"`
+	AppName               string  `json:"app_name"`
+	Environment           string  `json:"environment"`
+	IsDevelopment         bool    `json:"is_development"`
+	Version               string  `json:"version"`
+	MaxConcurrentRequests int64   `json:"max_concurrent_requests"`
+	QueueTimeoutMs        int64   `json:"queue_timeout_ms"`
+	DockerPollIntervalSec float64 `json:"docker_poll_interval_sec"`
+	Port                  string  `json:"port"`
+	LogLevel              string  `json:"log_level"`
 }
 
 // SeedResult records the summary of a synthetic traffic run.
@@ -43,10 +48,15 @@ type SeedResult struct {
 func handleConfig(cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		resp := ConfigResponse{
-			AppName:       "SanProx",
-			Environment:   cfg.Environment,
-			IsDevelopment: cfg.IsDevelopment(),
-			Version:       "v1.0.0",
+			AppName:               "SanProx",
+			Environment:           cfg.Environment,
+			IsDevelopment:         cfg.IsDevelopment(),
+			Version:               "v1.0.0",
+			MaxConcurrentRequests: cfg.MaxConcurrentRequests,
+			QueueTimeoutMs:        cfg.QueueTimeout.Milliseconds(),
+			DockerPollIntervalSec: cfg.DockerPollInterval.Seconds(),
+			Port:                  cfg.Port,
+			LogLevel:              cfg.LogLevel.String(),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
