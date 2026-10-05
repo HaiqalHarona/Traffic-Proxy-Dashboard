@@ -60,7 +60,7 @@
                     <span id="env-badge" class="text-[10px] px-2 py-0.5 rounded-sm font-mono font-bold border uppercase tracking-wider bg-[#1c1e27] text-zinc-400 border-[#2b2e3c]">__SANPROX_ENVIRONMENT__</span>
                 </div>
                 <div class="hidden lg:flex items-center space-x-3 text-[11px] text-zinc-400 border-l border-[#23252e] pl-4 font-mono">
-                    <span>TARGET: <code class="text-zinc-200">:80 / :443</code></span>
+                    <span>TARGET: <code class="text-zinc-200">:80</code></span>
                     <span class="text-zinc-600">&bull;</span>
                     <span>SOCKET: <code class="text-zinc-200">/var/run/docker.sock:ro</code></span>
                     <span class="text-zinc-600">&bull;</span>
@@ -71,7 +71,6 @@
             <!-- Telemetry Status Stream Indicator -->
             <div class="flex items-center space-x-2 text-[11px] font-mono">
                 <div class="flex items-center space-x-2 bg-[#15171e] border border-[#262833] px-2.5 py-1 rounded-sm">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span class="text-zinc-300">SSE: /api/events</span>
                 </div>
             </div>
@@ -149,52 +148,52 @@
 
                     <!-- 2x3 Matrix Grid Container (HTMX SSE Connected) -->
                     <div hx-ext="sse" sse-connect="/api/events" sse-swap="metrics" class="grid grid-cols-3 divide-x divide-y divide-[#20222a] border border-[#20222a] my-3 bg-[#0e0f14]">
-                        <!-- Cell 1: Total Requests (LEADS CREATED) -->
+                        <!-- Cell 1: Total Requests -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
                             <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">TOTAL REQUESTS</span>
-                            <div id="metric-total-requests" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">0</div>
-                            <span class="text-[10px] sm:text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
+                            <div id="metric-total-requests" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">-</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-zinc-500 mt-0.5">--</span>
                         </div>
 
-                        <!-- Cell 2: Active Concurrency (POTENTIALS CREATED) -->
+                        <!-- Cell 2: Active Concurrency -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
                             <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">ACTIVE CONCURRENCY</span>
-                            <div id="metric-active-concurrency" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">159</div>
-                            <span class="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
+                            <div id="metric-active-concurrency" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">-</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-zinc-500 mt-0.5">--</span>
                         </div>
 
-                        <!-- Cell 3: Revenue Generated (REVENUE GENERATED) -->
+                        <!-- Cell 3: Healthy Services -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
                             <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">HEALTHY SERVICES</span>
-                            <div id="metric-healthy-services" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">0</div>
-                            <span class="text-[10px] sm:text-[11px] font-mono text-rose-400 font-semibold mt-0.5">2% &darr;</span>
+                            <div id="metric-healthy-services" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">-</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-zinc-500 mt-0.5">--</span>
                         </div>
 
-                        <!-- Cell 4: Discovered Services (SALES WON) -->
+                        <!-- Cell 4: Discovered Services -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
                             <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">DISCOVERED SERVICES</span>
-                            <div id="metric-discovered-services" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">76</div>
-                            <span class="text-[10px] sm:text-[11px] font-mono text-rose-400 font-semibold mt-0.5">6% &darr;</span>
+                            <div id="metric-discovered-services" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">-</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-zinc-500 mt-0.5">--</span>
                         </div>
 
-                        <!-- Cell 5: Queued Requests (CREATING DEALS) -->
+                        <!-- Cell 5: Queued Requests -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
                             <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">QUEUED REQUESTS</span>
-                            <div id="metric-queued-requests" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-amber-400 mt-1 truncate w-full">159</div>
-                            <span class="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
+                            <div id="metric-queued-requests" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-amber-400 mt-1 truncate w-full">-</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-zinc-500 mt-0.5">--</span>
                         </div>
 
-                        <!-- Cell 6: Progressing Deals (PROGRESSING DEALS) -->
+                        <!-- Cell 6: System Status -->
                         <div class="p-2 sm:p-3 text-center flex flex-col justify-center items-center overflow-hidden">
                             <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">SYSTEM STATUS</span>
-                            <div id="metric-system-status" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">ONLINE</div>
-                            <span class="text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold mt-0.5">7% &uarr;</span>
+                            <div id="metric-system-status" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">-</div>
+                            <span class="text-[10px] sm:text-[11px] font-mono text-zinc-500 mt-0.5">--</span>
                         </div>
                     </div>
 
                     <!-- Widget Subtitle -->
                     <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                        West - This Quarter
+                        Real-Time Gateway Core State (Dual SSE)
                     </div>
                 </div>
 
@@ -212,35 +211,17 @@
                         <!-- Left Side: Big Ratio and Mini Bars -->
                         <div class="flex-1 w-full space-y-2.5">
                             <div class="text-left font-mono">
-                                <span id="concurrency-ratio-val" class="text-2xl sm:text-3xl font-extrabold text-white">0</span>
-                                <span class="text-zinc-500 text-lg font-normal"> / 5000</span>
+                                <span id="concurrency-ratio-val" class="text-2xl sm:text-3xl font-extrabold text-white">-</span>
+                                <span class="text-zinc-500 text-lg font-normal"> / <span id="concurrency-max-val">-</span></span>
                             </div>
 
                             <div class="space-y-1.5 font-mono text-[10px]">
-                                <span class="text-zinc-400 font-bold uppercase tracking-wider block">TOP ACTIVE ROUTES (MOCK)</span>
-                                <!-- Bar 1: Logan (Green) -->
-                                <div class="flex items-center justify-between text-zinc-300">
-                                    <span class="w-12 truncate">app.local</span>
-                                    <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
-                                        <div class="bg-emerald-500 h-full" style="width: 87.5%"></div>
-                                    </div>
-                                    <span class="text-zinc-400 text-[9px] w-9 text-right">87.5%</span>
+                                <div class="flex items-center justify-between text-zinc-400 font-bold uppercase tracking-wider">
+                                    <span>PER-ROUTE CONCURRENCY</span>
+                                    <span class="text-[9px] text-zinc-500 font-normal">M5.1</span>
                                 </div>
-                                <!-- Bar 2: Morris (White) -->
-                                <div class="flex items-center justify-between text-zinc-300">
-                                    <span class="w-12 truncate">api.local</span>
-                                    <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
-                                        <div class="bg-white h-full" style="width: 74.67%"></div>
-                                    </div>
-                                    <span class="text-zinc-400 text-[9px] w-9 text-right">74.67%</span>
-                                </div>
-                                <!-- Bar 3: Sara (Coral) -->
-                                <div class="flex items-center justify-between text-zinc-300">
-                                    <span class="w-12 truncate">cdn.local</span>
-                                    <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
-                                        <div class="bg-rose-500 h-full" style="width: 40%"></div>
-                                    </div>
-                                    <span class="text-zinc-400 text-[9px] w-9 text-right">40%</span>
+                                <div class="p-2 rounded-sm bg-[#0e0f14] border border-[#20222a] text-zinc-500 text-[10px] text-center italic">
+                                    Per-route metric partitioning pending (Milestone 5.1)
                                 </div>
                             </div>
                         </div>
@@ -249,18 +230,18 @@
                         <div class="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center flex-shrink-0">
                             <svg class="w-24 h-24 sm:w-28 sm:h-28 gauge-svg" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                <circle id="gauge-concurrency-circle" cx="50" cy="50" r="38" stroke="#f43f5e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="138.48" stroke-linecap="round" />
+                                <circle id="gauge-concurrency-circle" cx="50" cy="50" r="38" stroke="#f43f5e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="238.76" stroke-linecap="round" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                <span id="gauge-concurrency-pct" class="text-lg sm:text-xl font-extrabold font-mono text-white mt-0.5">42%</span>
+                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Capacity Utilized</span>
+                                <span id="gauge-concurrency-pct" class="text-lg sm:text-xl font-extrabold font-mono text-white mt-0.5">-%</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Widget Subtitle -->
                     <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                        Global - Live Real-Time
+                        Semaphore Capacity &amp; In-Flight Ratio
                     </div>
                 </div>
 
@@ -269,7 +250,7 @@
                     <!-- Widget Header -->
                     <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                         <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">METRIC</span>
-                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">NETWORK SUCCESS RATE</h2>
+                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">QUEUE UTILIZATION</h2>
                     </div>
 
                     <!-- Content Layout: Centered Donut Gauge -->
@@ -280,15 +261,15 @@
                                 <circle id="queue-util-circle" cx="50" cy="50" r="38" stroke="#f59e0b" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="238.76" stroke-linecap="round" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                <span id="queue-util-pct" class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">0%</span>
+                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Queue Saturation</span>
+                                <span id="queue-util-pct" class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">-%</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Widget Subtitle -->
                     <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                        Global - Live Capacity
+                        Semaphore Wait Buffer &amp; Backlog Ratio
                     </div>
                 </div>
 
@@ -322,13 +303,12 @@
                             <div class="flex flex-col sm:flex-row items-center my-2 gap-3 sm:gap-4">
                                 <!-- Left Metric Callout -->
                                 <div class="w-full sm:w-28 text-center sm:text-left flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-[#20222a] pr-2 pb-2 sm:pb-0 flex-shrink-0">
-                                    <div id="chart-hero-active" class="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-mono text-white">87</div>
-                                    <div class="flex items-center justify-center sm:justify-start space-x-1 text-xs font-mono text-rose-400 font-bold mt-1">
-                                        <span>8%</span>
-                                        <span>&darr;</span>
+                                    <div id="chart-hero-active" class="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-mono text-white">-</div>
+                                    <div class="flex items-center justify-center sm:justify-start space-x-1 text-xs font-mono text-zinc-500 font-bold mt-1">
+                                        <span>--</span>
                                     </div>
                                     <div class="text-[10px] font-mono text-zinc-400 mt-1.5">
-                                        Gateway - Live Feed
+                                        In-Flight Concurrency
                                     </div>
                                 </div>
 
@@ -339,7 +319,7 @@
                             </div>
 
                             <div class="text-[10px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                                Real-Time Concurrency &amp; Ingestion Latency Window
+                                Real-Time Concurrency &amp; Queue Buffer History (SSE)
                             </div>
                         </div>
 
@@ -348,7 +328,7 @@
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                                 <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">METRIC</span>
-                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">QUEUE UTILIZATION</h2>
+                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">CONTAINER HEALTH</h2>
                             </div>
 
                             <!-- Content Layout: Centered Donut Gauge -->
@@ -359,15 +339,15 @@
                                         <circle id="health-ratio-circle" cx="50" cy="50" r="38" stroke="#10b981" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="238.76" stroke-linecap="round" />
                                     </svg>
                                     <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                                        <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                        <span id="health-ratio-pct" class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">0%</span>
+                                        <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Healthy Replicas</span>
+                                        <span id="health-ratio-pct" class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">-%</span>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Widget Subtitle -->
                             <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                                Services - Live Status
+                                Docker Backend Availability Ratio
                             </div>
                         </div>
 
@@ -381,64 +361,45 @@
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                                 <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">METRIC</span>
-                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">HEALTH RATIO</h2>
-                                <span class="text-[10px] font-mono text-zinc-500">QTR</span>
+                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">LOAD BALANCING POOLS</h2>
+                                <span class="text-[10px] font-mono text-zinc-500">M1.1</span>
                             </div>
 
-                            <!-- Content Layout: Left Ratio & Leaderboard, Right Donut (Responsive stack on xs) -->
-                            <div class="flex flex-col sm:flex-row items-center justify-between my-3 gap-3">
-                                <!-- Left Side: Big Ratio and Mini Bars -->
-                                <div class="flex-1 w-full space-y-2">
-                                    <div class="text-left font-mono">
-                                        <span class="text-2xl sm:text-3xl font-extrabold text-white">99.9</span>
-                                        <span class="text-zinc-500 text-lg font-normal"> %</span>
+                            <!-- Content Layout: Supported Balancer Algorithms (M1.1) -->
+                            <div class="space-y-2 my-2 font-mono text-xs">
+                                <div class="flex items-center justify-between p-1.5 rounded-sm bg-[#0e0f14] border border-[#20222a]">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="px-1.5 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">ROUND-ROBIN</span>
+                                        <span class="text-zinc-300 text-[11px]">Cyclic replica distribution</span>
                                     </div>
-
-                                    <div class="space-y-1 font-mono text-[10px]">
-                                        <span class="text-zinc-400 font-bold uppercase tracking-wider block">TOP ACTIVE ROUTES (MOCK)</span>
-                                        <!-- Bar 1: Morris (White) -->
-                                        <div class="flex items-center justify-between text-zinc-300">
-                                            <span class="w-12 truncate">api.local</span>
-                                            <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
-                                                <div class="bg-white h-full" style="width: 88.25%"></div>
-                                            </div>
-                                            <span class="text-zinc-400 text-[9px] w-9 text-right">88.25%</span>
-                                        </div>
-                                        <!-- Bar 2: Sara (White) -->
-                                        <div class="flex items-center justify-between text-zinc-300">
-                                            <span class="w-12 truncate">cdn.local</span>
-                                            <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
-                                                <div class="bg-white h-full" style="width: 84%"></div>
-                                            </div>
-                                            <span class="text-zinc-400 text-[9px] w-9 text-right">84%</span>
-                                        </div>
-                                        <!-- Bar 3: Don (White) -->
-                                        <div class="flex items-center justify-between text-zinc-300">
-                                            <span class="w-12 truncate">web.local</span>
-                                            <div class="flex-1 mx-2 bg-[#1e2029] h-2 rounded-none overflow-hidden">
-                                                <div class="bg-white h-full" style="width: 78%"></div>
-                                            </div>
-                                            <span class="text-zinc-400 text-[9px] w-9 text-right">78%</span>
-                                        </div>
-                                    </div>
+                                    <span class="text-[10px] text-zinc-500">DEFAULT</span>
                                 </div>
-
-                                <!-- Right Side: Circular White Donut Gauge -->
-                                <div class="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-24 h-24 sm:w-28 sm:h-28 gauge-svg" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                        <circle cx="50" cy="50" r="38" stroke="#ffffff" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="14.33" stroke-linecap="round" />
-                                    </svg>
-                                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                                        <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Target Achieved</span>
-                                        <span class="text-lg sm:text-xl font-extrabold font-mono text-white mt-0.5">94%</span>
+                                <div class="flex items-center justify-between p-1.5 rounded-sm bg-[#0e0f14] border border-[#20222a]">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="px-1.5 py-0.5 rounded-sm bg-sky-500/10 text-sky-400 border border-sky-500/20 text-[10px] font-bold">LEAST-CONN</span>
+                                        <span class="text-zinc-300 text-[11px]">Lowest active in-flight count</span>
                                     </div>
+                                    <span class="text-[10px] text-zinc-500">ACTIVE</span>
+                                </div>
+                                <div class="flex items-center justify-between p-1.5 rounded-sm bg-[#0e0f14] border border-[#20222a]">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="px-1.5 py-0.5 rounded-sm bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold">IP-HASH</span>
+                                        <span class="text-zinc-300 text-[11px]">FNV-1a client sticky session</span>
+                                    </div>
+                                    <span class="text-[10px] text-zinc-500">ACTIVE</span>
+                                </div>
+                                <div class="flex items-center justify-between p-1.5 rounded-sm bg-[#0e0f14] border border-[#20222a]">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold">RANDOM</span>
+                                        <span class="text-zinc-300 text-[11px]">Uniform pseudo-random pick</span>
+                                    </div>
+                                    <span class="text-[10px] text-zinc-500">ACTIVE</span>
                                 </div>
                             </div>
 
                             <!-- Widget Subtitle -->
                             <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                                Edge - Moving Average (Mock)
+                                Multi-Replica Balancing Algorithms (M1.1)
                             </div>
                         </div>
 
@@ -446,59 +407,59 @@
                         <div class="col-span-12 md:col-span-6 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md">
                             <!-- Widget Header -->
                             <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
-                                <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">KPI</span>
-                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">NODE METRICS (MOCK)</h2>
-                                <span class="text-[10px] font-mono text-zinc-500">LOCAL</span>
+                                <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">SPEC</span>
+                                <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase">GATEWAY ARCHITECTURE SPEC</h2>
+                                <span class="text-[10px] font-mono text-zinc-500">CORE</span>
                             </div>
 
                             <!-- 2x3 Matrix Grid Container -->
                             <div class="grid grid-cols-3 divide-x divide-y divide-[#20222a] border border-[#20222a] my-2 bg-[#0e0f14]">
                                 <!-- Cell 1 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">TOTAL REQUESTS</span>
-                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">432</div>
-                                    <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">1% &darr;</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">CONCURRENCY CAP</span>
+                                    <div id="spec-max-conc" class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">-</div>
+                                    <span class="text-[10px] font-mono text-zinc-500 mt-0.5">SLOTS</span>
                                 </div>
 
                                 <!-- Cell 2 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">ACTIVE CONCURRENCY</span>
-                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">159</div>
-                                    <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">QUEUE TIMEOUT</span>
+                                    <div id="spec-queue-timeout" class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">-</div>
+                                    <span class="text-[10px] font-mono text-zinc-500 mt-0.5">TIMEOUT</span>
                                 </div>
 
                                 <!-- Cell 3 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">HEALTHY SERVICES</span>
-                                    <div class="text-sm sm:text-lg lg:text-xl font-bold font-mono text-white mt-0.5 truncate w-full">$3,585,000</div>
-                                    <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">5% &darr;</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">POLL INTERVAL</span>
+                                    <div id="spec-poll-interval" class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">-</div>
+                                    <span class="text-[10px] font-mono text-zinc-500 mt-0.5">DOCKER POLL</span>
                                 </div>
 
                                 <!-- Cell 4 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">DISCOVERED SERVICES</span>
-                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">75</div>
-                                    <span class="text-[10px] font-mono text-rose-400 font-semibold mt-0.5">10% &darr;</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">RING BUFFER</span>
+                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">1024</div>
+                                    <span class="text-[10px] font-mono text-zinc-500 mt-0.5">SLOTS</span>
                                 </div>
 
                                 <!-- Cell 5 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">QUEUED REQUESTS</span>
-                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">159</div>
-                                    <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">DISCOVERY API</span>
+                                    <div class="text-xs sm:text-sm font-bold font-mono text-emerald-400 mt-0.5 truncate w-full">/var/run/docker.sock</div>
+                                    <span class="text-[10px] font-mono text-zinc-500 mt-0.5">READ-ONLY (:ro)</span>
                                 </div>
 
                                 <!-- Cell 6 -->
                                 <div class="p-2 sm:p-2.5 text-center flex flex-col justify-center items-center overflow-hidden">
-                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">SYSTEM STATUS</span>
-                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-white mt-0.5 truncate w-full">159</div>
-                                    <span class="text-[10px] font-mono text-emerald-400 font-semibold mt-0.5">1% &uarr;</span>
+                                    <span class="text-[9px] sm:text-[10px] text-zinc-400 font-mono tracking-wider uppercase truncate w-full">DEPLOYMENT TARGET</span>
+                                    <div class="text-base sm:text-xl lg:text-2xl font-bold font-mono text-sky-400 mt-0.5 truncate w-full">scratch</div>
+                                    <span class="text-[10px] font-mono text-zinc-500 mt-0.5">ROOTLESS (65534)</span>
                                 </div>
                             </div>
 
                             <!-- Widget Subtitle -->
                             <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                                Server - Real-Time Stats
+                                Runtime Throttling Parameters &amp; Architecture Engine
                             </div>
                         </div>
 
@@ -507,31 +468,31 @@
                 </div>
 
 
-                <!-- RIGHT STACK (Col Span 12 on mobile/tablet, 3 on desktop): WIDGET 6 (Contest / Countdown / Leaderboard) -->
+                <!-- RIGHT STACK (Col Span 12 on mobile/tablet, 3 on desktop): WIDGET 6 (Gateway Runtime & Discovery) -->
                 <div class="col-span-12 lg:col-span-3 bg-[#121318] border border-[#262833] rounded-sm p-3.5 sm:p-4 flex flex-col justify-between shadow-md h-full">
                     <!-- Widget Header -->
                     <div class="flex items-center justify-between pb-2 border-b border-[#20222a]">
                         <span class="text-[10px] font-mono tracking-widest text-zinc-400 font-bold uppercase">GATEWAY</span>
-                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase truncate">UPTIME</h2>
+                        <h2 class="text-xs sm:text-sm font-bold font-mono tracking-wider text-zinc-200 uppercase truncate">GATEWAY RUNTIME</h2>
                     </div>
 
-                    <!-- Top Neon Green Radial Donut Gauge (100% Status) -->
+                    <!-- Top Neon Green Radial Donut Gauge (Engine State) -->
                     <div class="my-3 flex items-center justify-center">
                         <div class="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
                             <svg class="w-28 h-28 sm:w-32 sm:h-32 gauge-svg" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="38" stroke="#1f222b" stroke-width="11" fill="transparent" />
-                                <circle cx="50" cy="50" r="38" stroke="#22c55e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="0" stroke-linecap="round" />
+                                <circle id="gateway-health-circle" cx="50" cy="50" r="38" stroke="#22c55e" stroke-width="11" fill="transparent" stroke-dasharray="238.76" stroke-dashoffset="0" stroke-linecap="round" />
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">Status</span>
-                                <span class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">OK</span>
+                                <span class="text-[9px] font-mono text-zinc-400 uppercase tracking-tighter">System</span>
+                                <span id="gateway-health-label" class="text-xl sm:text-2xl font-extrabold font-mono text-white mt-0.5">READY</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Digital Countdown Timer Display -->
+                    <!-- Digital Session Elapsed Timer Display -->
                     <div class="bg-[#0b0c10] border border-[#242631] rounded-sm p-2 my-2 text-center font-mono">
-                        <div class="text-[9px] text-zinc-400 uppercase tracking-widest font-semibold">TIME REMAINING</div>
+                        <div class="text-[9px] text-zinc-400 uppercase tracking-widest font-semibold">SESSION ELAPSED TIME</div>
                         <div class="text-[11px] sm:text-xs font-bold text-white tracking-widest mt-1 flex justify-center items-center space-x-1.5 sm:space-x-2">
                             <span class="text-center"><b id="time-days" class="text-zinc-200">0</b><span class="text-[8px] text-zinc-500 block">DAYS</span></span>
                             <span class="text-zinc-600">:</span>
@@ -543,72 +504,21 @@
                         </div>
                     </div>
 
-                    <!-- Leaderboard Table with Avatars & Rankings -->
-                    <div class="my-2 space-y-2 font-mono flex-1 flex flex-col justify-center">
+                    <!-- Discovered Container Routes List -->
+                    <div id="overview-routes-container" class="my-2 space-y-1.5 font-mono flex-1 flex flex-col justify-center">
                         <div class="text-[10px] text-zinc-400 font-bold uppercase tracking-wider pb-1 border-b border-[#20222a]">
-                            ACTIVE RULES
+                            DISCOVERED CONTAINER ROUTES
                         </div>
-
-                        <!-- Item 1: Morris (1st) -->
-                        <div class="flex items-center justify-between text-xs py-1 hover:bg-[#1a1c24] px-1 rounded-sm transition">
-                            <div class="flex items-center space-x-2">
-                                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-600 to-amber-300 flex items-center justify-center text-[10px] font-bold text-black border border-amber-300">
-                                    M
-                                </div>
-                                <span class="text-zinc-200 font-medium truncate">api.local</span>
-                            </div>
-                            <div class="flex items-center space-x-2 sm:space-x-3">
-                                <span class="text-zinc-400 font-semibold">1568</span>
-                                <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">1st</span>
-                            </div>
-                        </div>
-
-                        <!-- Item 2: Allene (2nd) -->
-                        <div class="flex items-center justify-between text-xs py-1 hover:bg-[#1a1c24] px-1 rounded-sm transition">
-                            <div class="flex items-center space-x-2">
-                                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-rose-600 to-rose-300 flex items-center justify-center text-[10px] font-bold text-white border border-rose-300">
-                                    A
-                                </div>
-                                <span class="text-zinc-200 font-medium truncate">auth.local</span>
-                            </div>
-                            <div class="flex items-center space-x-2 sm:space-x-3">
-                                <span class="text-zinc-400 font-semibold">166</span>
-                                <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">2nd</span>
-                            </div>
-                        </div>
-
-                        <!-- Item 3: Don (3rd) -->
-                        <div class="flex items-center justify-between text-xs py-1 hover:bg-[#1a1c24] px-1 rounded-sm transition">
-                            <div class="flex items-center space-x-2">
-                                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-sky-600 to-sky-300 flex items-center justify-center text-[10px] font-bold text-white border border-sky-300">
-                                    D
-                                </div>
-                                <span class="text-zinc-200 font-medium truncate">web.local</span>
-                            </div>
-                            <div class="flex items-center space-x-2 sm:space-x-3">
-                                <span class="text-zinc-400 font-semibold">151</span>
-                                <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">3rd</span>
-                            </div>
-                        </div>
-
-                        <!-- Item 4: Sara (4th) -->
-                        <div class="flex items-center justify-between text-xs py-1 hover:bg-[#1a1c24] px-1 rounded-sm transition">
-                            <div class="flex items-center space-x-2">
-                                <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-600 to-emerald-300 flex items-center justify-center text-[10px] font-bold text-black border border-emerald-300">
-                                    S
-                                </div>
-                                <span class="text-zinc-200 font-medium truncate">cdn.local</span>
-                            </div>
-                            <div class="flex items-center space-x-2 sm:space-x-3">
-                                <span class="text-zinc-400 font-semibold">146</span>
-                                <span class="text-zinc-500 text-[10px] w-5 text-right font-bold">4th</span>
+                        <div id="overview-routes-list" class="space-y-1.5 overflow-y-auto max-h-36">
+                            <div class="text-zinc-500 italic text-[10px] text-center py-3">
+                                No active container rules discovered
                             </div>
                         </div>
                     </div>
 
                     <!-- Widget Subtitle -->
                     <div class="text-[11px] text-zinc-400 font-mono tracking-tight text-center pt-1 border-t border-[#20222a]">
-                        Gateway - Active Rules (Mock)
+                        Continuous Docker Discovery &amp; Session Lifetime
                     </div>
                 </div>
 
@@ -653,36 +563,9 @@
                             </tr>
                         </thead>
                         <tbody id="routes-table-body" class="divide-y divide-[#1e2029] text-zinc-300">
-                            <!-- Route 1: app.local -->
-                            <tr class="hover:bg-[#181922] transition">
-                                <td class="py-3 px-4">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
-                                        HEALTHY
-                                    </span>
-                                </td>
-                                <td class="py-3 px-4 font-bold text-white">app.local</td>
-                                <td class="py-3 px-4 text-zinc-300">backend-api-local</td>
-                                <td class="py-3 px-4 text-zinc-400">172.20.0.3:5678</td>
-                                <td class="py-3 px-4 text-zinc-400">Round-Robin</td>
-                                <td class="py-3 px-4 text-zinc-400">0 / 5000</td>
-                                <td class="py-3 px-4 text-right">
-                                    <button onclick="copyCurl('app.local')" class="text-zinc-400 hover:text-white underline cursor-pointer text-xs">curl -H</button>
-                                </td>
-                            </tr>
-                            <!-- Route 2: slow.local -->
-                            <tr class="hover:bg-[#181922] transition">
-                                <td class="py-3 px-4">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
-                                        DELAYED (200ms)
-                                    </span>
-                                </td>
-                                <td class="py-3 px-4 font-bold text-white">slow.local</td>
-                                <td class="py-3 px-4 text-zinc-300">backend-slow-local</td>
-                                <td class="py-3 px-4 text-zinc-400">172.20.0.4:8080</td>
-                                <td class="py-3 px-4 text-zinc-400">Weighted Sem</td>
-                                <td class="py-3 px-4 text-zinc-400">0 / 5000</td>
-                                <td class="py-3 px-4 text-right">
-                                    <button onclick="copyCurl('slow.local')" class="text-zinc-400 hover:text-white underline cursor-pointer text-xs">curl -H</button>
+                            <tr id="empty-routes-row">
+                                <td colspan="7" class="py-8 text-center text-zinc-500 italic">
+                                    No active container routes registered. Waiting for Docker discovery scan...
                                 </td>
                             </tr>
                         </tbody>
@@ -759,11 +642,11 @@
                     <div class="space-y-2 text-zinc-400">
                         <div class="flex justify-between">
                             <span>Max Concurrent Capacity:</span>
-                            <span class="text-white font-bold">5,000 slots</span>
+                            <span id="engine-max-conc" class="text-white font-bold">-</span>
                         </div>
                         <div class="flex justify-between">
                             <span>Queue Timeout:</span>
-                            <span class="text-white font-bold">3,000 ms</span>
+                            <span id="engine-queue-timeout" class="text-white font-bold">-</span>
                         </div>
                         <div class="flex justify-between">
                             <span>Saturation Status:</span>
@@ -792,7 +675,7 @@
                         </div>
                         <div class="flex justify-between">
                             <span>Poll Interval:</span>
-                            <span class="text-white font-bold">5.00s</span>
+                            <span id="engine-poll-interval" class="text-white font-bold">-</span>
                         </div>
                         <div class="flex justify-between">
                             <span>Socket Permission:</span>
@@ -812,11 +695,7 @@
                     <span class="text-[10px] text-zinc-500">Real-time daemon events</span>
                 </div>
                 <div id="log-console" class="bg-[#0b0c10] p-3 rounded-sm border border-[#20222a] text-[11px] font-mono text-zinc-400 h-52 overflow-y-auto space-y-1">
-                    <div><span class="text-zinc-600">[INFO]</span> <span class="text-zinc-500">20:50:01</span> Gateway initialization completed. Listening on :80</div>
-                    <div><span class="text-zinc-600">[INFO]</span> <span class="text-zinc-500">20:50:02</span> Docker provider connected to /var/run/docker.sock</div>
-                    <div><span class="text-emerald-500/80">[ROUTE]</span> <span class="text-zinc-500">20:50:02</span> Registered backend: app.local -&gt; http://172.20.0.3:5678</div>
-                    <div><span class="text-emerald-500/80">[ROUTE]</span> <span class="text-zinc-500">20:50:02</span> Registered backend: slow.local -&gt; http://172.20.0.4:8080</div>
-                    <div><span class="text-sky-500/80">[SSE]</span> <span class="text-zinc-500">20:50:03</span> Client subscribed to /api/events telemetry channel</div>
+                    <div><span class="text-zinc-600">[INFO]</span> <span class="text-zinc-500">Gateway event stream listening. Awaiting runtime events...</span></div>
                 </div>
             </div>
 
@@ -1002,12 +881,11 @@
         window.trafficChart = new Chart(ctx, {
             type: 'line',
             data: {
-                
-                labels: ['12:00', '12:05', '12:10', '12:15', '12:20', '12:25', '12:30', '12:35', '12:40', '12:45', '12:50', '12:55', '13:00', '13:05', '13:10', '13:15', '13:20', '13:25', '13:30', '13:35'],
+                labels: [],
                 datasets: [
                     {
                         label: 'Active Concurrency',
-                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        data: [],
                         borderColor: '#10b981',
                         backgroundColor: 'rgba(16, 185, 129, 0.08)',
                         fill: true,
@@ -1017,7 +895,7 @@
                     },
                     {
                         label: 'Queued Requests',
-                        data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        data: [],
                         borderColor: '#f59e0b',
                         backgroundColor: 'rgba(245, 158, 11, 0.08)',
                         fill: true,
@@ -1026,7 +904,6 @@
                         tension: 0.2
                     }
                 ]
-
             },
             options: {
                 responsive: true,
@@ -1094,10 +971,11 @@
                     
                     // Update hero chart metric
                     const hero = document.getElementById('chart-hero-active');
-                    if (hero) hero.textContent = data.total_requests || 0;
+                    if (hero) hero.textContent = data.active_concurrency !== undefined ? data.active_concurrency : '-';
 
                     // Update Concurrency utilization gauge
-                    const concPct = Math.min(100, Math.round(((data.active_concurrency || 0) / 5000) * 100));
+                    const maxCap = window.gatewayMaxConcurrent || 5000;
+                    const concPct = Math.min(100, Math.round(((data.active_concurrency || 0) / maxCap) * 100));
                     const concCircle = document.getElementById('gauge-concurrency-circle');
                     const concPctLabel = document.getElementById('gauge-concurrency-pct');
                     const concRatioVal = document.getElementById('concurrency-ratio-val');
@@ -1109,7 +987,7 @@
                         concPctLabel.textContent = `${concPct}%`;
                     }
                     if (concRatioVal) {
-                        concRatioVal.textContent = data.active_concurrency || 0;
+                        concRatioVal.textContent = data.active_concurrency !== undefined ? data.active_concurrency : '-';
                     }
 
                     // Update Queue Utilization
@@ -1182,7 +1060,54 @@
         // Environment Detection & Controls
         const SANPROX_ENV = "__SANPROX_ENVIRONMENT__";
 
+        function loadGatewayConfig() {
+            fetch('/api/config')
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.json();
+                })
+                .then(cfg => {
+                    window.gatewayMaxConcurrent = cfg.max_concurrent_requests || 5000;
+                    const maxEl = document.getElementById('concurrency-max-val');
+                    const engMax = document.getElementById('engine-max-conc');
+                    const specMax = document.getElementById('spec-max-conc');
+                    if (maxEl) maxEl.textContent = window.gatewayMaxConcurrent.toLocaleString();
+                    if (engMax) engMax.textContent = window.gatewayMaxConcurrent.toLocaleString() + ' slots';
+                    if (specMax) specMax.textContent = window.gatewayMaxConcurrent.toLocaleString();
+
+                    const qTimeout = cfg.queue_timeout_ms ? `${cfg.queue_timeout_ms} ms` : '-';
+                    const engTimeout = document.getElementById('engine-queue-timeout');
+                    const specTimeout = document.getElementById('spec-queue-timeout');
+                    if (engTimeout) engTimeout.textContent = qTimeout;
+                    if (specTimeout) specTimeout.textContent = qTimeout;
+
+                    const pollInt = cfg.docker_poll_interval_sec ? `${cfg.docker_poll_interval_sec}s` : '-';
+                    const engPoll = document.getElementById('engine-poll-interval');
+                    const specPoll = document.getElementById('spec-poll-interval');
+                    if (engPoll) engPoll.textContent = pollInt;
+                    if (specPoll) specPoll.textContent = pollInt;
+                })
+                .catch(err => {
+                    console.warn("Could not fetch gateway config:", err);
+                });
+        }
+
+        function initRouteSearch() {
+            const searchInput = document.getElementById('route-search');
+            if (!searchInput) return;
+            searchInput.addEventListener('input', function(e) {
+                const term = e.target.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('#routes-table-body tr');
+                rows.forEach(row => {
+                    if (row.id === 'empty-routes-row') return;
+                    row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+                });
+            });
+        }
+
         function initEnvironmentUI() {
+            loadGatewayConfig();
+            initRouteSearch();
             const badge = document.getElementById('env-badge');
             const devCard = document.getElementById('dev-console-card');
             const devTabBtn = document.getElementById('tab-btn-devtools');
