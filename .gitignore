@@ -33,4 +33,4 @@ go.work.sum
 
 # Local agent skills containing private paths
 .agents/skills/plan-artifact-export/
-.agents/agents/
+
