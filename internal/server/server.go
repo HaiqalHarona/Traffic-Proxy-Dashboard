@@ -29,6 +29,7 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 	}
 
 	r := chi.NewRouter()
+	r.Use(SecurityHeadersMiddleware)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 

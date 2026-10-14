@@ -34,30 +34,29 @@ All baseline architecture components have been systematically audited against th
 ### 1.1 Multi-Replica Load Balancing
 - [x] **Feature**: Support multiple container backends sharing the same `traffic-proxy.rule` hostname.
 - **Implementation Evidence**:
-  - Replaced single-host `map[string]*httputil.ReverseProxy` with `BackendPool` in [`internal/proxy/proxy.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go).
-  - Implemented 4 load balancing algorithms in [`internal/proxy/balancer.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/balancer.go):
+  - Replaced single-host `map[string]*httputil.ReverseProxy` with `BackendPool` in [`internal/proxy/proxy.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go).
+  - Implemented 4 load balancing algorithms in [`internal/proxy/balancer.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/balancer.go):
     - `round-robin` (default): Atomic cyclic index selection across healthy replicas.
     - `least-conn`: Selects backend with lowest atomic in-flight connection counter.
     - `ip-hash`: FNV-1a hash of client IP for sticky session routing.
     - `random`: Uniform pseudo-random distribution.
   - Added label `traffic-proxy.balance` parsing in `NewBalancer`.
-  - Upgraded [`internal/discovery/discovery.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go) to catalogue all containers, probe reachability via TCP, and flag `Reachable`/`Enabled`/`DiscoveryError`.
-  - Updated [`cmd/proxy/main.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/cmd/proxy/main.go) to pass raw target slices to `router.UpdateBackends(targets)`.
-  - Comprehensive unit testing: [`test/unit/balancer_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/balancer_test.go) and [`test/unit/proxy_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go).
+  - Upgraded [`internal/discovery/discovery.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go) to catalogue all containers, probe reachability via TCP, and flag `Reachable`/`Enabled`/`DiscoveryError`.
+  - Updated [`cmd/proxy/main.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/cmd/proxy/main.go) to pass raw target slices to `router.UpdateBackends(targets)`.
+  - Comprehensive unit testing: [`test/unit/balancer_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/balancer_test.go) and [`test/unit/proxy_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go).
 - **Target Files**: `internal/proxy/balancer.go`, `internal/proxy/proxy.go`, `internal/discovery/discovery.go`, `cmd/proxy/main.go`.
 - **Status**: **Completed**.
 
 ### 1.2 Path-Based Routing & Path Rewriting
-- [ ] **Feature**: Route requests based on URL path prefixes and rewrite paths before forwarding.
-- **Implementation Plan**:
-  - Add container labels:
-    - `traffic-proxy.path=/api/v1/*`
-    - `traffic-proxy.strip-prefix=/api/v1`
-    - `traffic-proxy.priority=100` (for overlapping route resolution)
-  - Implement a Trie-based or Radix-tree path matcher in `internal/proxy`.
-  - Rewrite `req.URL.Path` and preserve original path in `X-Forwarded-Prefix`.
-- **Target Files**: `internal/proxy/route_tree.go`, `internal/proxy/proxy.go`.
-- **Status**: **Pending** (Currently only hostname-based routing is evaluated).
+- [x] **Feature**: Route requests based on URL path prefixes and rewrite paths before forwarding.
+- **Implementation Evidence**:
+  - Implemented segment-based prefix trie [`HostTrie`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/route_tree.go) and [`RouteTable`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/route_tree.go) in [`internal/proxy/route_tree.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/route_tree.go). Supports integer priority precedence and Longest Prefix Match (LPM) tie-breaking with strict segment boundary isolation.
+  - Added path routing label parsing and validation (`traffic-proxy.path`, `traffic-proxy.strip-prefix`, `traffic-proxy.priority`) with error tagging in [`internal/discovery/discovery.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go).
+  - Upgraded [`internal/proxy/proxy.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go) with lock-free atomic route table swapping via `atomic.Pointer[RouteTable]`, prefix stripping using pooled `bytes.Buffer`, and `X-Forwarded-Prefix` header propagation.
+  - Strict zero-fallback returning HTTP 404 for unmapped paths under registered hosts.
+  - Comprehensive unit testing: [`test/unit/route_tree_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/route_tree_test.go), [`test/unit/proxy_path_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_path_test.go), and [`test/unit/discovery_test.go:TestDockerProvider_PathRoutingLabelValidation`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/discovery_test.go).
+- **Target Files**: `internal/proxy/route_tree.go`, `internal/proxy/proxy.go`, `internal/discovery/discovery.go`.
+- **Status**: **Completed**.
 
 ### 1.3 WebSocket & HTTP Upgrade Support
 - [ ] **Feature**: Transparent proxying of WebSocket (`ws://` and `wss://`) connections and HTTP/2 cleartext (`h2c`).
@@ -109,11 +108,14 @@ All baseline architecture components have been systematically audited against th
 - **Status**: **Pending** (Rate limiting package not yet integrated).
 
 ### 2.5 Security Headers Middleware
-- [ ] **Feature**: Enforce modern browser security standards.
-- **Implementation Plan**:
-  - Chi middleware injecting `Strict-Transport-Security` (HSTS), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`.
-- **Target Files**: `internal/server/middleware.go`.
-- **Status**: **Pending** (Only `middleware.Logger` and `middleware.Recoverer` currently active).
+- [x] **Feature**: Enforce modern browser security standards.
+- **Implementation Evidence**:
+  - Implemented [`SecurityHeadersMiddleware`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/middleware.go) injecting `Strict-Transport-Security` (HSTS), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`.
+  - Implemented [`securityResponseWriter`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/middleware.go) preserving `http.Flusher`, `http.Hijacker`, and Go 1.20+ `Unwrap()` compatibility for SSE and WebSockets.
+  - Mounted onto the Chi router pipeline in [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go).
+  - Comprehensive unit testing: [`test/unit/middleware_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/middleware_test.go).
+- **Target Files**: `internal/server/middleware.go`, `internal/server/server.go`.
+- **Status**: **Completed**.
 
 ---
 
@@ -260,8 +262,8 @@ All baseline architecture components have been systematically audited against th
 | Milestone | Key Features | Status | Priority | Estimated Complexity | Core Packages |
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | **Baseline Architecture** | Single-host proxy, Semaphore queue, Docker discovery, Embedded UI, Dev Controls | **Completed** | Foundation | - | `internal/*`, `ui/` |
-| **M1: Load Balancing & Routing** | Multi-replica pools, Round-Robin, Path matching, WebSocket | **In Progress (1.1 Done)** | **P0 (Immediate)** | Medium | `internal/proxy` |
-| **M2: TLS & Security** | Let's Encrypt ACME, Custom certs, HTTPS redirect, Rate limiting | **Pending** | **P0 (Immediate)** | High | `internal/server`, `internal/proxy` |
+| **M1: Load Balancing & Routing** | Multi-replica pools, Round-Robin, Path matching, WebSocket | **In Progress (1.1, 1.2 Done)** | **P0 (Immediate)** | Medium | `internal/proxy` |
+| **M2: TLS & Security** | Let's Encrypt ACME, Custom certs, HTTPS redirect, Rate limiting, Security headers | **In Progress (2.5 Done)** | **P0 (Immediate)** | High | `internal/server`, `internal/proxy` |
 | **M3: Health Checks & Resiliency**| Active HTTP probes, Circuit Breakers, Safe retries | **Pending** | **P1 (High)** | Medium | `internal/discovery`, `internal/proxy` |
 | **M4: Event-Driven Discovery** | Real-time Docker events, File/Static provider, Swarm/K8s | **Pending** | **P1 (High)** | Medium | `internal/discovery` |
 | **M5: Observability & Dashboard** | Live SSE stream (Done), Dev Controls & Seeder (Done), Per-route metrics, Prometheus `/metrics`, Drain controls | **In Progress** | **P2 (Medium)** | Medium | `internal/metrics`, `ui/`, `internal/server` |

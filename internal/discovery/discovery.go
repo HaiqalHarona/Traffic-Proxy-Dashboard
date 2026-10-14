@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +27,9 @@ type ServiceTarget struct {
 	Name           string
 	Host           string
 	HostRule       string
+	PathRule       string
+	StripPrefix    bool
+	Priority       int
 	Port           int
 	Healthy        bool
 	Reachable      bool // false when TCP probe fails
@@ -180,6 +185,81 @@ func (d *DockerProvider) Scan(ctx context.Context) error {
 			targetPort = 80
 		}
 
+		// --- Path routing label parsing & validation --------------------
+		pathRule := "/"
+		var pathErr string
+		if rawPath, ok := c.Labels["traffic-proxy.path"]; ok {
+			if rawPath == "" {
+				pathErr = "invalid traffic-proxy.path: must not be empty"
+			} else if !strings.HasPrefix(rawPath, "/") {
+				pathErr = "invalid traffic-proxy.path: must start with '/'"
+			} else if strings.Contains(rawPath, "..") {
+				pathErr = "invalid traffic-proxy.path: must not contain '..'"
+			} else if strings.ContainsAny(rawPath, " \t\r\n") {
+				pathErr = "invalid traffic-proxy.path: must not contain whitespace"
+			} else {
+				pathRule = path.Clean(rawPath)
+				if pathRule == "" {
+					pathRule = "/"
+				}
+			}
+		}
+
+		var stripPrefix bool
+		var stripErr string
+		if stripPrefixStr, ok := c.Labels["traffic-proxy.strip-prefix"]; ok && stripPrefixStr != "" {
+			if stripPrefixStr == "true" {
+				stripPrefix = true
+			} else if stripPrefixStr == "false" {
+				stripPrefix = false
+			} else {
+				stripErr = fmt.Sprintf("invalid traffic-proxy.strip-prefix: must be 'true' or 'false', got %q", stripPrefixStr)
+			}
+		}
+
+		var priority int
+		var priorityErr string
+		if priorityStr, ok := c.Labels["traffic-proxy.priority"]; ok && priorityStr != "" {
+			p, err := strconv.Atoi(priorityStr)
+			if err != nil {
+				priorityErr = fmt.Sprintf("invalid traffic-proxy.priority: must be integer, got %q: %v", priorityStr, err)
+			} else {
+				priority = p
+			}
+		}
+
+		var validationErr string
+		if pathErr != "" {
+			validationErr = pathErr
+		} else if stripErr != "" {
+			validationErr = stripErr
+		} else if priorityErr != "" {
+			validationErr = priorityErr
+		}
+
+		if validationErr != "" {
+			partial = append(partial, partialTarget{
+				target: ServiceTarget{
+					ID:             c.ID,
+					Name:           containerName,
+					Host:           targetIP,
+					Port:           targetPort,
+					HostRule:       rule,
+					PathRule:       pathRule,
+					StripPrefix:    stripPrefix,
+					Priority:       priority,
+					Labels:         c.Labels,
+					Healthy:        false,
+					Reachable:      false,
+					Enabled:        enabled,
+					CreatedAt:      time.Unix(c.Created, 0),
+					DiscoveryError: validationErr,
+				},
+				needProbe: false,
+			})
+			continue
+		}
+
 		// --- Build target URL -------------------------------------------
 		rawURL := fmt.Sprintf("http://%s:%d", targetIP, targetPort)
 		targetURL, parseErr := url.Parse(rawURL)
@@ -191,6 +271,9 @@ func (d *DockerProvider) Scan(ctx context.Context) error {
 					Host:           targetIP,
 					Port:           targetPort,
 					HostRule:       rule,
+					PathRule:       pathRule,
+					StripPrefix:    stripPrefix,
+					Priority:       priority,
 					Labels:         c.Labels,
 					Healthy:        false,
 					Reachable:      false,
@@ -205,17 +288,20 @@ func (d *DockerProvider) Scan(ctx context.Context) error {
 
 		partial = append(partial, partialTarget{
 			target: ServiceTarget{
-				ID:        c.ID,
-				Name:      containerName,
-				Host:      targetIP,
-				Port:      targetPort,
-				HostRule:  rule,
-				TargetURL: targetURL,
-				Labels:    c.Labels,
-				Healthy:   c.State == "running", // will be ANDed with Reachable after probe
-				Reachable: false,
-				Enabled:   enabled,
-				CreatedAt: time.Unix(c.Created, 0),
+				ID:          c.ID,
+				Name:        containerName,
+				Host:        targetIP,
+				Port:        targetPort,
+				HostRule:    rule,
+				PathRule:    pathRule,
+				StripPrefix: stripPrefix,
+				Priority:    priority,
+				TargetURL:   targetURL,
+				Labels:      c.Labels,
+				Healthy:     c.State == "running", // will be ANDed with Reachable after probe
+				Reachable:   false,
+				Enabled:     enabled,
+				CreatedAt:   time.Unix(c.Created, 0),
 			},
 			needProbe: true,
 		})

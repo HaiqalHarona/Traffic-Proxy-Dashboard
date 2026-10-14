@@ -1,14 +1,17 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/HaiqalHarona/Traffic-Proxy-Dashboard/internal/discovery"
@@ -85,15 +88,21 @@ func (p *BackendPool) Backends() []*Backend {
 	return copied
 }
 
+var pathBufPool = sync.Pool{
+	New: func() any {
+		return new(bytes.Buffer)
+	},
+}
+
 // Router manages target reverse proxies and active traffic control.
 type Router struct {
 	sem     *semaphore.Weighted
 	metrics *metrics.Collector
-	pools   map[string]*BackendPool
+	routes  atomic.Pointer[RouteTable]
 	// Improvement 4: per-URL backend cache so existing transports/proxies are
 	// reused across UpdateBackends calls when the endpoint URL hasn't changed.
 	backendCache map[string]*Backend // keyed by targetURL.String()
-	mu           sync.RWMutex
+	mu           sync.RWMutex        // protects backendCache and route mutations
 	cfg          Config
 	trustedNets  []*net.IPNet // parsed from cfg.TrustedProxyCIDRs
 }
@@ -108,14 +117,15 @@ func NewRouter(cfg Config, collector *metrics.Collector) *Router {
 
 	trustedNets := parseCIDRs(cfg.TrustedProxyCIDRs)
 
-	return &Router{
+	r := &Router{
 		sem:          semaphore.NewWeighted(cfg.MaxConcurrentRequests),
 		metrics:      collector,
-		pools:        make(map[string]*BackendPool),
 		backendCache: make(map[string]*Backend),
 		cfg:          cfg,
 		trustedNets:  trustedNets,
 	}
+	r.routes.Store(NewRouteTable())
+	return r
 }
 
 // parseCIDRs converts a list of CIDR strings into parsed *net.IPNet values, skipping malformed ones.
@@ -207,11 +217,15 @@ func (r *Router) getOrCreateBackend(targetURL *url.URL, healthy bool) *Backend {
 
 // pruneBackendCache removes entries from the backend cache that are not referenced
 // by any current pool. Must be called with r.mu held (write).
-func (r *Router) pruneBackendCache() {
+func (r *Router) pruneBackendCache(table *RouteTable) {
 	active := make(map[string]struct{})
-	for _, pool := range r.pools {
-		for _, b := range pool.backends {
-			active[b.URL.String()] = struct{}{}
+	if table != nil {
+		for _, ht := range table.hosts {
+			for _, entry := range ht.routes {
+				for _, b := range entry.Pool.backends {
+					active[b.URL.String()] = struct{}{}
+				}
+			}
 		}
 	}
 	for key := range r.backendCache {
@@ -221,24 +235,79 @@ func (r *Router) pruneBackendCache() {
 	}
 }
 
-// RegisterBackend registers or appends a target downstream proxy endpoint to a host's pool.
+// RegisterBackend registers or appends a target downstream proxy endpoint to a host's root pool.
 func (r *Router) RegisterBackend(hostRule string, targetURL *url.URL) {
+	r.RegisterRouteBackend(hostRule, "/", false, 0, targetURL)
+}
+
+// RegisterRouteBackend registers or appends a target downstream proxy endpoint to a host and path pool.
+func (r *Router) RegisterRouteBackend(hostRule, pathRule string, stripPrefix bool, priority int, targetURL *url.URL) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	hostRule = NormalizeHost(hostRule)
-	backend := r.getOrCreateBackend(targetURL, true)
-
-	pool, exists := r.pools[hostRule]
-	if !exists || pool == nil {
-		r.pools[hostRule] = NewBackendPool([]*Backend{backend}, NewBalancer("round-robin"))
-		return
+	if pathRule == "" {
+		pathRule = "/"
+	}
+	canonicalPath := path.Clean(pathRule)
+	if canonicalPath == "" {
+		canonicalPath = "/"
 	}
 
-	pool.mu.Lock()
-	pool.backends = append(pool.backends, backend)
-	pool.healthyBackends = filterHealthy(pool.backends)
-	pool.mu.Unlock()
+	backend := r.getOrCreateBackend(targetURL, true)
+
+	// Clone current RouteTable
+	current := r.routes.Load()
+	newTable := NewRouteTable()
+	if current != nil {
+		for h, ht := range current.hosts {
+			newTrie := NewHostTrie()
+			for _, re := range ht.routes {
+				newEntry := &RouteEntry{
+					Host:        re.Host,
+					Path:        re.Path,
+					StripPrefix: re.StripPrefix,
+					Priority:    re.Priority,
+					Pool:        re.Pool,
+				}
+				_ = newTrie.Insert(newEntry)
+			}
+			newTable.hosts[h] = newTrie
+		}
+	}
+
+	ht := newTable.GetHost(hostRule)
+	if ht == nil {
+		ht = NewHostTrie()
+		newTable.hosts[hostRule] = ht
+	}
+
+	var existingEntry *RouteEntry
+	for _, re := range ht.routes {
+		if re.Path == canonicalPath {
+			existingEntry = re
+			break
+		}
+	}
+
+	if existingEntry == nil {
+		pool := NewBackendPool([]*Backend{backend}, NewBalancer("round-robin"))
+		entry := &RouteEntry{
+			Host:        hostRule,
+			Path:        canonicalPath,
+			StripPrefix: stripPrefix,
+			Priority:    priority,
+			Pool:        pool,
+		}
+		_ = ht.Insert(entry)
+	} else {
+		existingEntry.Pool.mu.Lock()
+		existingEntry.Pool.backends = append(existingEntry.Pool.backends, backend)
+		existingEntry.Pool.healthyBackends = filterHealthy(existingEntry.Pool.backends)
+		existingEntry.Pool.mu.Unlock()
+	}
+
+	r.routes.Store(newTable)
 }
 
 // UpdateBackends synchronizes active host routes and multi-replica pools from discovery targets.
@@ -247,63 +316,125 @@ func (r *Router) RegisterBackend(hostRule string, targetURL *url.URL) {
 //   - Improvement 4: existing Backend instances (and their http.Transport pools) are reused
 //     for endpoints whose URL hasn't changed, avoiding keep-alive connection churn every scan.
 //   - Improvement 5: healthyBackends pre-filtered slice is rebuilt after pool construction.
-//   - Improvement 6: algorithm label is determined by scanning ALL targets for a host and using
+//   - Improvement 6: algorithm label is determined by scanning ALL targets for a host/path and using
 //     the first non-empty value, so label inconsistency across replicas doesn't cause flapping.
+//   - Lock-free atomic route table swapping via atomic.Pointer[RouteTable].
 func (r *Router) UpdateBackends(targets []discovery.ServiceTarget) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	grouped := make(map[string][]discovery.ServiceTarget)
+	type routeGroupKey struct {
+		host string
+		path string
+	}
+
+	grouped := make(map[routeGroupKey][]discovery.ServiceTarget)
 	for _, t := range targets {
 		if t.Healthy && t.Enabled && t.TargetURL != nil {
 			host := NormalizeHost(t.HostRule)
 			if host != "" {
-				grouped[host] = append(grouped[host], t)
+				p := t.PathRule
+				if p == "" {
+					p = "/"
+				}
+				cleanPath := path.Clean(p)
+				if cleanPath == "" {
+					cleanPath = "/"
+				}
+				k := routeGroupKey{host: host, path: cleanPath}
+				grouped[k] = append(grouped[k], t)
 			}
 		}
 	}
 
-	newPools := make(map[string]*BackendPool, len(grouped))
-	for host, hostTargets := range grouped {
-		// Improvement 6: find the first non-empty balance label across ALL replicas.
-		algorithm := ""
-		for _, t := range hostTargets {
-			if v := t.Labels["traffic-proxy.balance"]; v != "" {
-				algorithm = v
-				break
-			}
-		}
+	newTable := NewRouteTable()
 
-		backends := make([]*Backend, 0, len(hostTargets))
-		for _, t := range hostTargets {
-			// Improvement 4: reuse existing backend if URL is unchanged.
-			b := r.getOrCreateBackend(t.TargetURL, t.Healthy)
-			backends = append(backends, b)
+	// Organize grouped targets by host
+	hostGroups := make(map[string]map[string][]discovery.ServiceTarget)
+	for k, hostTargets := range grouped {
+		if hostGroups[k.host] == nil {
+			hostGroups[k.host] = make(map[string][]discovery.ServiceTarget)
 		}
-		newPools[host] = NewBackendPool(backends, NewBalancer(algorithm))
+		hostGroups[k.host][k.path] = hostTargets
 	}
 
-	r.pools = newPools
-	// Improvement 4: evict stale cache entries for removed endpoints.
-	r.pruneBackendCache()
+	for host, pathMap := range hostGroups {
+		ht := NewHostTrie()
+		for pathRule, pathTargets := range pathMap {
+			algorithm := ""
+			for _, t := range pathTargets {
+				if v := t.Labels["traffic-proxy.balance"]; v != "" {
+					algorithm = v
+					break
+				}
+			}
+
+			stripPrefix := pathTargets[0].StripPrefix
+			priority := pathTargets[0].Priority
+
+			backends := make([]*Backend, 0, len(pathTargets))
+			for _, t := range pathTargets {
+				b := r.getOrCreateBackend(t.TargetURL, t.Healthy)
+				backends = append(backends, b)
+			}
+
+			pool := NewBackendPool(backends, NewBalancer(algorithm))
+			entry := &RouteEntry{
+				Host:        host,
+				Path:        pathRule,
+				StripPrefix: stripPrefix,
+				Priority:    priority,
+				Pool:        pool,
+			}
+			_ = ht.Insert(entry)
+		}
+		newTable.hosts[host] = ht
+	}
+
+	r.routes.Store(newTable)
+	r.pruneBackendCache(newTable)
 }
 
 // Backends returns a list of registered backend host rules.
 func (r *Router) Backends() []string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	hosts := make([]string, 0, len(r.pools))
-	for h := range r.pools {
-		hosts = append(hosts, h)
+	table := r.routes.Load()
+	if table == nil {
+		return nil
 	}
-	return hosts
+	return table.Hosts()
 }
 
-// Pool returns the BackendPool associated with the host rule, or nil.
+// Pool returns the root BackendPool associated with the host rule, or nil.
 func (r *Router) Pool(hostRule string) *BackendPool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return r.pools[NormalizeHost(hostRule)]
+	return r.RoutePool(hostRule, "/")
+}
+
+// RoutePool returns the BackendPool associated with a specific host rule and path, or nil.
+func (r *Router) RoutePool(hostRule, pathRule string) *BackendPool {
+	table := r.routes.Load()
+	if table == nil {
+		return nil
+	}
+	ht := table.GetHost(hostRule)
+	if ht == nil {
+		return nil
+	}
+	if pathRule == "" {
+		pathRule = "/"
+	}
+	canonical := path.Clean(pathRule)
+	if canonical == "" {
+		canonical = "/"
+	}
+	for _, entry := range ht.routes {
+		if entry.Path == canonical {
+			return entry.Pool
+		}
+	}
+	if len(ht.routes) > 0 {
+		return ht.routes[0].Pool
+	}
+	return nil
 }
 
 // ServeHTTP handles request queuing, concurrency control, and proxy forwarding.
@@ -328,19 +459,55 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	cleanHost := NormalizeHost(req.Host)
 
-	r.mu.RLock()
-	pool, exists := r.pools[cleanHost]
-	r.mu.RUnlock()
-
-	if !exists || pool == nil {
+	table := r.routes.Load()
+	if table == nil {
 		http.Error(w, "Gateway Error: No matching backend route", http.StatusBadGateway)
 		return
 	}
 
-	// Improvement 7b: extract real client IP, respecting trusted proxy headers.
+	hostTrie := table.GetHost(cleanHost)
+	if hostTrie == nil {
+		http.Error(w, "Gateway Error: No matching backend route", http.StatusBadGateway)
+		return
+	}
+
+	entry := hostTrie.Match(req.URL.Path)
+	if entry == nil {
+		http.Error(w, "Path Not Found: No matching route prefix", http.StatusNotFound)
+		return
+	}
+
+	if entry.StripPrefix {
+		buf := pathBufPool.Get().(*bytes.Buffer)
+		buf.Reset()
+		stripped := strings.TrimPrefix(req.URL.Path, entry.Path)
+		if stripped == "" || !strings.HasPrefix(stripped, "/") {
+			buf.WriteByte('/')
+			buf.WriteString(strings.TrimPrefix(stripped, "/"))
+		} else {
+			buf.WriteString(stripped)
+		}
+		req.URL.Path = buf.String()
+
+		if req.URL.RawPath != "" {
+			buf.Reset()
+			rawStripped := strings.TrimPrefix(req.URL.RawPath, entry.Path)
+			if rawStripped == "" || !strings.HasPrefix(rawStripped, "/") {
+				buf.WriteByte('/')
+				buf.WriteString(strings.TrimPrefix(rawStripped, "/"))
+			} else {
+				buf.WriteString(rawStripped)
+			}
+			req.URL.RawPath = buf.String()
+		}
+		pathBufPool.Put(buf)
+	}
+
+	req.Header.Set("X-Forwarded-Prefix", entry.Path)
+
 	clientIP := r.clientIPFromRequest(req)
 
-	backend := pool.Pick(clientIP)
+	backend := entry.Pool.Pick(clientIP)
 	if backend == nil {
 		http.Error(w, "Gateway Error: No healthy backend available", http.StatusBadGateway)
 		return

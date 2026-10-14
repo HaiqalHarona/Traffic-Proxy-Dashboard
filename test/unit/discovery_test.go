@@ -250,3 +250,153 @@ func TestDockerProvider_ScanAndStart(t *testing.T) {
 		t.Fatalf("Expected context cancellation error, got %v", startErr)
 	}
 }
+
+func TestDockerProvider_PathRoutingLabelValidation(t *testing.T) {
+	t.Parallel()
+
+	fakeContainers := []types.Container{
+		{
+			ID:    "c-valid-path",
+			Names: []string{"/valid-path"},
+			State: "running",
+			Labels: map[string]string{
+				"traffic-proxy.enable":       "true",
+				"traffic-proxy.rule":         "app.local",
+				"traffic-proxy.path":         "/api/v1",
+				"traffic-proxy.strip-prefix": "true",
+				"traffic-proxy.priority":     "10",
+			},
+		},
+		{
+			ID:    "c-invalid-path-noslash",
+			Names: []string{"/invalid-path-noslash"},
+			State: "running",
+			Labels: map[string]string{
+				"traffic-proxy.enable": "true",
+				"traffic-proxy.rule":   "app.local",
+				"traffic-proxy.path":   "api/v1",
+			},
+		},
+		{
+			ID:    "c-invalid-path-dotdot",
+			Names: []string{"/invalid-path-dotdot"},
+			State: "running",
+			Labels: map[string]string{
+				"traffic-proxy.enable": "true",
+				"traffic-proxy.rule":   "app.local",
+				"traffic-proxy.path":   "/api/../secret",
+			},
+		},
+		{
+			ID:    "c-invalid-path-space",
+			Names: []string{"/invalid-path-space"},
+			State: "running",
+			Labels: map[string]string{
+				"traffic-proxy.enable": "true",
+				"traffic-proxy.rule":   "app.local",
+				"traffic-proxy.path":   "/api /v1",
+			},
+		},
+		{
+			ID:    "c-invalid-strip-prefix",
+			Names: []string{"/invalid-strip"},
+			State: "running",
+			Labels: map[string]string{
+				"traffic-proxy.enable":       "true",
+				"traffic-proxy.rule":         "app.local",
+				"traffic-proxy.strip-prefix": "yes",
+			},
+		},
+		{
+			ID:    "c-invalid-priority",
+			Names: []string{"/invalid-priority"},
+			State: "running",
+			Labels: map[string]string{
+				"traffic-proxy.enable":   "true",
+				"traffic-proxy.rule":     "app.local",
+				"traffic-proxy.priority": "high",
+			},
+		},
+		{
+			ID:    "c-default-path",
+			Names: []string{"/default-path"},
+			State: "running",
+			Labels: map[string]string{
+				"traffic-proxy.enable": "true",
+				"traffic-proxy.rule":   "app.local",
+			},
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(fakeContainers)
+	}))
+	defer server.Close()
+
+	cli, err := client.NewClientWithOpts(
+		client.WithHost(server.URL),
+		client.WithHTTPClient(server.Client()),
+		client.WithVersion("1.41"),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create docker client: %v", err)
+	}
+
+	provider := discovery.NewDockerProviderWithClient(cli, 50*time.Millisecond)
+	if err := provider.Scan(context.Background()); err != nil {
+		t.Fatalf("Scan failed: %v", err)
+	}
+
+	services, err := provider.Services()
+	if err != nil {
+		t.Fatalf("Services() failed: %v", err)
+	}
+
+	lookup := make(map[string]discovery.ServiceTarget)
+	for _, s := range services {
+		lookup[s.ID] = s
+	}
+
+	// 1. Valid target
+	valid := lookup["c-valid-path"]
+	if valid.PathRule != "/api/v1" || !valid.StripPrefix || valid.Priority != 10 {
+		t.Fatalf("Expected valid path rule /api/v1, strip-prefix=true, priority=10; got %+v", valid)
+	}
+
+	// 2. Invalid path: missing leading slash
+	noSlash := lookup["c-invalid-path-noslash"]
+	if noSlash.Healthy || noSlash.DiscoveryError == "" {
+		t.Fatalf("Expected Healthy=false and DiscoveryError set on invalid path no-slash, got %+v", noSlash)
+	}
+
+	// 3. Invalid path: dot-dot traversal
+	dotDot := lookup["c-invalid-path-dotdot"]
+	if dotDot.Healthy || dotDot.DiscoveryError == "" {
+		t.Fatalf("Expected Healthy=false and DiscoveryError set on dot-dot path, got %+v", dotDot)
+	}
+
+	// 4. Invalid path: whitespace
+	space := lookup["c-invalid-path-space"]
+	if space.Healthy || space.DiscoveryError == "" {
+		t.Fatalf("Expected Healthy=false and DiscoveryError set on space path, got %+v", space)
+	}
+
+	// 5. Invalid strip-prefix: "yes"
+	strip := lookup["c-invalid-strip-prefix"]
+	if strip.Healthy || strip.DiscoveryError == "" {
+		t.Fatalf("Expected Healthy=false and DiscoveryError set on invalid strip-prefix, got %+v", strip)
+	}
+
+	// 6. Invalid priority: "high"
+	prio := lookup["c-invalid-priority"]
+	if prio.Healthy || prio.DiscoveryError == "" {
+		t.Fatalf("Expected Healthy=false and DiscoveryError set on invalid priority, got %+v", prio)
+	}
+
+	// 7. Default path when absent: "/"
+	def := lookup["c-default-path"]
+	if def.PathRule != "/" {
+		t.Fatalf("Expected default PathRule='/', got %q", def.PathRule)
+	}
+}
