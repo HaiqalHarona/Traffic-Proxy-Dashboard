@@ -160,8 +160,8 @@ func runWorker(ctx context.Context, client *http.Client, targetURL string, s *st
 		}
 
 		s.totalRequests.Add(1)
-		resp, err := client.Do(req)
-		if err != nil {
+		resp, doErr := client.Do(req)
+		if doErr != nil {
 			if ctx.Err() == nil {
 				s.errors.Add(1)
 			}

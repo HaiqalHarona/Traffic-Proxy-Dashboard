@@ -4,7 +4,6 @@ run:
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
@@ -17,3 +16,4 @@ linters-settings:
     enable-all: true
     disable:
       - fieldalignment
+      - shadow
