@@ -113,10 +113,10 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 
 			snapshot := collector.Snapshot(serviceCount, healthyCount)
 
-			statusDotClass := "w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20"
+			statusDotClass := "hidden"
 			statusTitle := fmt.Sprintf("%d/%d healthy containers", healthyCount, serviceCount)
 			if !snapshot.SystemHealthy {
-				statusDotClass = "w-2.5 h-2.5 rounded-full bg-rose-500 ring-4 ring-rose-500/20 animate-pulse"
+				statusDotClass = "hidden"
 				if serviceCount == 0 {
 					statusTitle = "No active backend containers"
 				} else {
@@ -129,10 +129,10 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 				statusDotClass, statusTitle,
 			)
 
-			systemStatusColor := "text-emerald-400"
+			systemStatusColor := "text-blue-500"
 			systemStatusText := "ONLINE"
 			if !snapshot.SystemHealthy {
-				systemStatusColor = "text-rose-400"
+				systemStatusColor = "text-slate-400"
 				if serviceCount == 0 {
 					systemStatusText = "EMPTY"
 				} else {
@@ -144,10 +144,10 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 			oobHTML := fmt.Sprintf(
 				`%s`+
 					`<div id="metric-total-requests" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">%d</div>`+
-					`<div id="metric-active-concurrency" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-emerald-400 mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-active-concurrency" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-blue-500 mt-1 truncate w-full">%d</div>`+
 					`<div id="metric-healthy-services" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">%d</div>`+
 					`<div id="metric-discovered-services" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-white mt-1 truncate w-full">%d</div>`+
-					`<div id="metric-queued-requests" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-amber-400 mt-1 truncate w-full">%d</div>`+
+					`<div id="metric-queued-requests" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono text-blue-500 mt-1 truncate w-full">%d</div>`+
 					`<div id="metric-system-status" hx-swap-oob="outerHTML" class="text-xl sm:text-2xl lg:text-3xl font-bold font-mono %s mt-1 truncate w-full">%s</div>`,
 				statusDotHTML, snapshot.TotalRequests, snapshot.ActiveConcurrency, snapshot.HealthyServices, snapshot.DiscoveredServices, snapshot.QueuedRequests, systemStatusColor, systemStatusText,
 			)

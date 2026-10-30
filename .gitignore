@@ -31,6 +31,10 @@ go.work.sum
 .idea/
 .vscode/
 
+# Air live-reload artifacts
+tmp/
+build-errors.log
+
 # Local agent skills containing private paths
 .agents/skills/plan-artifact-export/
 
