@@ -169,6 +169,7 @@ func handleDevDebugState(cfg config.Config, collector *metrics.Collector, proxyR
 			"total_requests":      collector.TotalRequests.Load(),
 			"active_concurrency":  collector.ActiveConcurrency.Load(),
 			"queued_requests":     collector.QueuedRequests.Load(),
+			"active_upgrades":     collector.ActiveUpgrades.Load(),
 			"registered_routes":   routes,
 			"discovered_services": len(services),
 		}

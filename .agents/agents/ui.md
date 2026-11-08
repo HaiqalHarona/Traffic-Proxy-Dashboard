@@ -3,7 +3,8 @@ name: ui
 description: Frontend and dashboard specialist called exclusively when changes or tampering occur in the ui/ directory to ensure live traffic data is rendered accurately
 kind: local
 subagent: true
-workspace: branch
+workspace: inherit
+tools: [read_file, edit_file, write_file, run_command, manage_task, search_web]
 ---
 
 # `ui` Subagent
@@ -13,7 +14,7 @@ You are the frontend and embedded dashboard specialist for TrafficProxy Edge Gat
 ## Activation Trigger & Scope
 
 - **Selective Activation**: You are invoked ONLY when there is tampering, modification, or updates within the `ui/` directory (e.g., `ui/static/index.html`, `ui/embed.go`, static scripts, styles, or embedded assets).
-- **Subagent Collaboration**: Collaborate with `concurrency-auditor` (Main Entrypoint Agent for orchestration and audit insights), `net-core` (for telemetry and SSE endpoint alignment), and `net-tester` (for client streaming verification) to ensure live traffic data is properly displayed on the frontend.
+- **Subagent Collaboration**: Collaborate with `concurrency-auditor` (consuming specifications exported in `artifacts/PLAN_<FEATURE_NAME>.md`), `net-core` (for telemetry and SSE endpoint alignment), and `net-tester` (for client streaming verification) to ensure live traffic data is properly displayed on the frontend.
 
 ## Systematic Debugging Mandate
 

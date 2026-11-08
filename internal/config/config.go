@@ -13,6 +13,7 @@ type Config struct {
 	Environment           string
 	Port                  string
 	MaxConcurrentRequests int64
+	MaxConcurrentUpgrades int64
 	QueueTimeout          time.Duration
 	DockerPollInterval    time.Duration
 	LogLevel              slog.Level
@@ -29,6 +30,7 @@ func Load() Config {
 		Environment:           "PRODUCTION",
 		Port:                  ":80",
 		MaxConcurrentRequests: 5000,
+		MaxConcurrentUpgrades: 1000,
 		QueueTimeout:          3 * time.Second,
 		DockerPollInterval:    5 * time.Second,
 		LogLevel:              slog.LevelInfo,
@@ -59,6 +61,12 @@ func Load() Config {
 	if maxConcStr := os.Getenv("PROXY_MAX_CONCURRENT"); maxConcStr != "" {
 		if val, err := strconv.ParseInt(maxConcStr, 10, 64); err == nil && val > 0 {
 			cfg.MaxConcurrentRequests = val
+		}
+	}
+
+	if maxUpgradesStr := os.Getenv("PROXY_MAX_CONCURRENT_UPGRADES"); maxUpgradesStr != "" {
+		if val, err := strconv.ParseInt(maxUpgradesStr, 10, 64); err == nil && val > 0 {
+			cfg.MaxConcurrentUpgrades = val
 		}
 	}
 

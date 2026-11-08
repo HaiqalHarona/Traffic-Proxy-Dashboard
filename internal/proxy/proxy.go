@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -24,6 +25,7 @@ var ErrQueueFull = errors.New("request queue capacity exceeded")
 // Config configures traffic control and concurrency bounds.
 type Config struct {
 	MaxConcurrentRequests int64
+	MaxConcurrentUpgrades int64
 	QueueTimeout          time.Duration
 	// TrustedProxyCIDRs lists CIDR blocks whose X-Forwarded-For/X-Real-IP headers
 	// are trusted for real client IP extraction (e.g. "10.0.0.0/8", "127.0.0.1/32").
@@ -94,6 +96,76 @@ var pathBufPool = sync.Pool{
 	},
 }
 
+// IsUpgradeRequest checks if the incoming request attempts an HTTP protocol upgrade
+// such as WebSocket (RFC 6455) or HTTP/2 cleartext h2c (RFC 7540).
+func IsUpgradeRequest(req *http.Request) bool {
+	upgrade := req.Header.Get("Upgrade")
+	if upgrade == "" {
+		return false
+	}
+	return headerContainsToken(req.Header.Get("Connection"), "upgrade")
+}
+
+func headerContainsToken(header, token string) bool {
+	for _, part := range strings.Split(header, ",") {
+		if strings.EqualFold(strings.TrimSpace(part), token) {
+			return true
+		}
+	}
+	return false
+}
+
+// upgradeTracker wraps http.ResponseWriter to intercept 101 Switching Protocols
+// and connection hijacking, releasing HTTP request queue semaphores early.
+type upgradeTracker struct {
+	http.ResponseWriter
+	onUpgrade func()
+	upgraded  bool
+	mu        sync.Mutex
+}
+
+func (u *upgradeTracker) markUpgraded() {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if !u.upgraded {
+		u.upgraded = true
+		if u.onUpgrade != nil {
+			u.onUpgrade()
+		}
+	}
+}
+
+func (u *upgradeTracker) WriteHeader(statusCode int) {
+	if statusCode == http.StatusSwitchingProtocols {
+		u.markUpgraded()
+	}
+	u.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (u *upgradeTracker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := u.ResponseWriter.(http.Hijacker); ok {
+		conn, brw, err := hj.Hijack()
+		if err == nil {
+			_ = conn.SetDeadline(time.Time{})
+			_ = conn.SetReadDeadline(time.Time{})
+			_ = conn.SetWriteDeadline(time.Time{})
+			u.markUpgraded()
+		}
+		return conn, brw, err
+	}
+	return nil, nil, errors.New("http.Hijacker not supported by underlying ResponseWriter")
+}
+
+func (u *upgradeTracker) Flush() {
+	if f, ok := u.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (u *upgradeTracker) Unwrap() http.ResponseWriter {
+	return u.ResponseWriter
+}
+
 // Router manages target reverse proxies and active traffic control.
 type Router struct {
 	sem     *semaphore.Weighted
@@ -113,6 +185,9 @@ func NewRouter(cfg Config, collector *metrics.Collector) *Router {
 	}
 	if cfg.QueueTimeout <= 0 {
 		cfg.QueueTimeout = 5 * time.Second
+	}
+	if cfg.MaxConcurrentUpgrades <= 0 {
+		cfg.MaxConcurrentUpgrades = 1000
 	}
 
 	trustedNets := parseCIDRs(cfg.TrustedProxyCIDRs)
@@ -441,6 +516,12 @@ func (r *Router) RoutePool(hostRule, pathRule string) *BackendPool {
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.metrics.TotalRequests.Add(1)
 
+	isUpgrade := IsUpgradeRequest(req)
+	if isUpgrade && r.cfg.MaxConcurrentUpgrades > 0 && r.metrics.ActiveUpgrades.Load() >= r.cfg.MaxConcurrentUpgrades {
+		http.Error(w, "Service Overloaded: WebSocket connection limit reached", http.StatusServiceUnavailable)
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(req.Context(), r.cfg.QueueTimeout)
 	defer cancel()
 
@@ -452,12 +533,35 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Service Overloaded: Request queue timeout", http.StatusServiceUnavailable)
 		return
 	}
-	defer r.sem.Release(1)
 
 	r.metrics.ActiveConcurrency.Add(1)
-	defer r.metrics.ActiveConcurrency.Add(-1)
+
+	var semReleased sync.Once
+	var isUpgraded bool
+
+	releaseSem := func() {
+		semReleased.Do(func() {
+			r.sem.Release(1)
+			r.metrics.ActiveConcurrency.Add(-1)
+		})
+	}
+
+	defer func() {
+		if isUpgraded {
+			r.metrics.ActiveUpgrades.Add(-1)
+		} else {
+			releaseSem()
+		}
+	}()
 
 	cleanHost := NormalizeHost(req.Host)
+	if cleanHost == "localhost" || cleanHost == "127.0.0.1" {
+		if targetHost := req.Header.Get("X-Target-Host"); targetHost != "" {
+			cleanHost = NormalizeHost(targetHost)
+		} else if targetHost := req.URL.Query().Get("host"); targetHost != "" {
+			cleanHost = NormalizeHost(targetHost)
+		}
+	}
 
 	table := r.routes.Load()
 	if table == nil {
@@ -516,7 +620,19 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	backend.ActiveConns.Add(1)
 	defer backend.ActiveConns.Add(-1)
 
-	backend.Proxy.ServeHTTP(w, req)
+	if isUpgrade {
+		tracker := &upgradeTracker{
+			ResponseWriter: w,
+			onUpgrade: func() {
+				releaseSem()
+				r.metrics.ActiveUpgrades.Add(1)
+				isUpgraded = true
+			},
+		}
+		backend.Proxy.ServeHTTP(tracker, req)
+	} else {
+		backend.Proxy.ServeHTTP(w, req)
+	}
 }
 
 // NormalizeHost extracts and lowercases the host name without port.

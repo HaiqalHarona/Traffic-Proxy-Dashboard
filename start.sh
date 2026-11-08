@@ -123,6 +123,7 @@ MOCK_CONTAINERS=(
   "store-service"
   "backend-slow-local"
   "backend-api-local"
+  "ws-service"
 )
 
 stop_mock_containers() {
@@ -270,12 +271,75 @@ HTTPServer(("", 8080), DelayedHandler).serve_forever()'
     --label "traffic-proxy.port=8080" \
     python:3.12-alpine python3 -c "$PYTHON_SCRIPT" >/dev/null
 
-  echo "Mock backends started (6 containers):"
+  # 7. Dedicated WebSocket Echo Service (ws.local & ws-service)
+  WS_PYTHON_SCRIPT='import socket, threading, base64, hashlib, struct
+def run():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(("", 8080))
+    s.listen(10)
+    while True:
+        try:
+            conn, _ = s.accept()
+            data = b""
+            while b"\r\n\r\n" not in data:
+                chunk = conn.recv(1024)
+                if not chunk: break
+                data += chunk
+            if not data:
+                conn.close()
+                continue
+            key = None
+            for line in data.decode("utf-8", errors="ignore").split("\r\n"):
+                if line.lower().startswith("sec-websocket-key:"):
+                    key = line.split(":", 1)[1].strip()
+                    break
+            if not key:
+                conn.sendall(b"HTTP/1.1 400 Bad Request\r\n\r\n")
+                conn.close()
+                continue
+            accept = base64.b64encode(hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()).decode()
+            resp = f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
+            conn.sendall(resp.encode("utf-8"))
+            while True:
+                hdr = conn.recv(2)
+                if len(hdr) < 2: break
+                b1, b2 = hdr[0], hdr[1]
+                opcode = b1 & 0x0f
+                if opcode == 0x8: break
+                masked = (b2 & 0x80) != 0
+                plen = b2 & 0x7f
+                if plen == 126: plen = struct.unpack(">H", conn.recv(2))[0]
+                elif plen == 127: plen = struct.unpack(">Q", conn.recv(8))[0]
+                masks = conn.recv(4) if masked else b""
+                payload = b""
+                while len(payload) < plen: payload += conn.recv(plen - len(payload))
+                if masked: payload = bytes(b ^ masks[i % 4] for i, b in enumerate(payload))
+                resp_hdr = bytearray([0x81])
+                if len(payload) < 126: resp_hdr.append(len(payload))
+                elif len(payload) <= 65535: resp_hdr.append(126); resp_hdr.extend(struct.pack(">H", len(payload)))
+                else: resp_hdr.append(127); resp_hdr.extend(struct.pack(">Q", len(payload)))
+                conn.sendall(resp_hdr + payload)
+            conn.close()
+        except Exception:
+            pass
+run()'
+
+  docker rm -f ws-service >/dev/null 2>&1 || true
+  docker run -d --name ws-service \
+    --network local-mesh \
+    --label "traffic-proxy.enable=true" \
+    --label "traffic-proxy.rule=ws.local" \
+    --label "traffic-proxy.port=8080" \
+    python:3.12-alpine python3 -c "$WS_PYTHON_SCRIPT" >/dev/null
+
+  echo "Mock backends started (7 containers):"
   echo "  - web-frontend-1 & web-frontend-2 (http://web.local/ [round-robin])"
   echo "  - api-service (http://app.local/api [prefix stripped])"
   echo "  - auth-service (http://app.local/auth)"
   echo "  - store-service (http://store.local/)"
   echo "  - backend-slow-local (http://slow.local/ [200ms latency])"
+  echo "  - ws-service (ws://ws.local/ [RFC 6455 full-duplex WebSocket echo])"
 }
 
 if [ "$START_BACKENDS" = true ]; then

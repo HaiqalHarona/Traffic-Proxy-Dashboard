@@ -56,6 +56,18 @@ func SetupRouter(collector *metrics.Collector, proxyRouter *proxy.Router, docker
 	indexContent := bytes.ReplaceAll(rawIndex, []byte("__SANPROX_ENVIRONMENT__"), []byte(cfg.Environment))
 
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		if proxyRouter != nil {
+			cleanHost := proxy.NormalizeHost(req.Host)
+			hasHostOverride := req.URL.Query().Get("host") != "" || req.Header.Get("X-Target-Host") != ""
+			isUpgrade := proxy.IsUpgradeRequest(req)
+			isProxiedHost := cleanHost != "localhost" && cleanHost != "127.0.0.1" && cleanHost != "" && proxyRouter.Pool(cleanHost) != nil
+
+			if hasHostOverride || isUpgrade || isProxiedHost {
+				proxyRouter.ServeHTTP(w, req)
+				return
+			}
+		}
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if cfg.IsDevelopment() {
 			if b, err := os.ReadFile("ui/static/index.html"); err == nil {
