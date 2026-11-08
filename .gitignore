@@ -35,6 +35,9 @@ go.work.sum
 tmp/
 build-errors.log
 
+# Planning and execution artifacts
+artifacts/
+
 # Local agent skills containing private paths
 .agents/skills/plan-artifact-export/
 

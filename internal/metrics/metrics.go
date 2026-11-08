@@ -12,6 +12,7 @@ type MetricSnapshot struct {
 	TotalRequests      uint64 `json:"total_requests"`
 	ActiveConcurrency  int64  `json:"active_concurrency"`
 	QueuedRequests     int64  `json:"queued_requests"`
+	ActiveUpgrades     int64  `json:"active_upgrades"`
 	DiscoveredServices int    `json:"discovered_services"`
 	HealthyServices    int    `json:"healthy_services"`
 	SystemHealthy      bool   `json:"system_healthy"`
@@ -60,6 +61,7 @@ type Collector struct {
 	TotalRequests     atomic.Uint64
 	ActiveConcurrency atomic.Int64
 	QueuedRequests    atomic.Int64
+	ActiveUpgrades    atomic.Int64
 }
 
 func NewCollector() *Collector {
@@ -80,6 +82,7 @@ func (c *Collector) Snapshot(discoveredCount int, optionalHealthy ...int) Metric
 		TotalRequests:      c.TotalRequests.Load(),
 		ActiveConcurrency:  c.ActiveConcurrency.Load(),
 		QueuedRequests:     c.QueuedRequests.Load(),
+		ActiveUpgrades:     c.ActiveUpgrades.Load(),
 		DiscoveredServices: discoveredCount,
 		HealthyServices:    healthyCount,
 		SystemHealthy:      systemHealthy,
@@ -93,4 +96,5 @@ func (c *Collector) Reset() {
 	c.TotalRequests.Store(0)
 	c.ActiveConcurrency.Store(0)
 	c.QueuedRequests.Store(0)
+	c.ActiveUpgrades.Store(0)
 }

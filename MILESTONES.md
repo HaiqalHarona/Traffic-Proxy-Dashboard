@@ -9,21 +9,21 @@ A comprehensive, technical implementation roadmap detailing current system statu
 All baseline architecture components have been systematically audited against the codebase and unit test suite:
 
 - [x] **Core Proxy Engine**: Single-host reverse proxy (`net/http/httputil.ReverseProxy`) with persistent connection pooling.
-  - *Evidence*: [`internal/proxy/proxy.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go#L57-L65); tested in [`test/unit/proxy_test.go:TestRouter_ServeHTTP_Routing`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go).
+  - *Evidence*: [`internal/proxy/proxy.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go#L57-L65); tested in [`test/unit/proxy_test.go:TestRouter_ServeHTTP_Routing`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go).
 - [x] **Concurrency Throttling**: Global concurrency gating via `golang.org/x/sync/semaphore` with a queue acquisition timeout returning 503 on saturation.
-  - *Evidence*: [`internal/proxy/proxy.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go#L91-L106); tested in [`test/unit/proxy_test.go:TestRouter_QueueTimeout`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go).
+  - *Evidence*: [`internal/proxy/proxy.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go#L91-L106); tested in [`test/unit/proxy_test.go:TestRouter_QueueTimeout`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go).
 - [x] **Service Discovery**: Docker Engine API polling over `/var/run/docker.sock` targeting `traffic-proxy.*` container labels.
-  - *Evidence*: [`internal/discovery/discovery.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go#L36-L175); tested in [`test/unit/discovery_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/discovery_test.go).
+  - *Evidence*: [`internal/discovery/discovery.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go#L36-L175); tested in [`test/unit/discovery_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/discovery_test.go).
 - [x] **Telemetry State Engine**: Global lock-free power-of-two ring buffer (1024 slots) and atomic counters tracking `TotalRequests`, `ActiveConcurrency`, `QueuedRequests`, and `DiscoveredServices`.
-  - *Evidence*: [`internal/metrics/metrics.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/metrics/metrics.go#L12-L108); tested in [`test/unit/metrics_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/metrics_test.go).
+  - *Evidence*: [`internal/metrics/metrics.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/metrics/metrics.go#L12-L108); tested in [`test/unit/metrics_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/metrics_test.go).
 - [x] **Embedded UI Dashboard**: Single static executable binary serving static assets from embedded filesystem (`//go:embed`).
-  - *Evidence*: [`ui/embed.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/embed.go), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html); tested in [`test/unit/server_test.go:TestSetupRouter_Endpoints`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go).
+  - *Evidence*: [`ui/embed.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/embed.go), [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html); tested in [`test/unit/server_test.go:TestSetupRouter_Endpoints`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go).
 - [x] **Live SSE Telemetry Streaming (`/api/events`)**: Server-Sent Events (SSE) streaming live DOM updates to HTMX and JSON to Chart.js.
-  - *Evidence*: [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html); tested in [`test/unit/server_test.go:TestSetupRouter_SSEEvents`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go).
+  - *Evidence*: [`internal/server/server.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go), [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html); tested in [`test/unit/server_test.go:TestSetupRouter_SSEEvents`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go).
 - [x] **Developer Sandbox & Interactive Controls**: Environment profiling (`DEVELOPMENT` vs `PRODUCTION`), dynamic Docker service target sampling in synthetic seeder (`POST /api/dev/seed`), queue saturation stress testing (`POST /api/dev/stress`), atomic metrics reset (`POST /api/dev/reset-metrics`), and live runtime state inspection (`GET /api/dev/debug-state`) protected by production access guards (403 Forbidden).
-  - *Evidence*: [`internal/server/dev.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/dev.go), [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html); tested in [`test/unit/server_test.go:TestSetupRouter_DevEndpoints_DevelopmentMode`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go), [`TestSetupRouter_DevEndpoints_ProductionForbidden`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go), [`TestSetupRouter_DevSeed_DynamicDockerSampling`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go).
+  - *Evidence*: [`internal/server/dev.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/dev.go), [`internal/server/server.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go), [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html); tested in [`test/unit/server_test.go:TestSetupRouter_DevEndpoints_DevelopmentMode`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go), [`TestSetupRouter_DevEndpoints_ProductionForbidden`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go), [`TestSetupRouter_DevSeed_DynamicDockerSampling`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go).
 - [x] **Testing & CI**: Decoupled unit test suite (`test/unit/`), `.golangci.yml` linting rules, and multi-stage scratch container compilation via GitHub Actions (`.github/workflows/ci.yml`).
-  - *Evidence*: [`test/unit/`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/), [`.golangci.yml`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.golangci.yml), [`.github/workflows/ci.yml`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.github/workflows/ci.yml), [`Dockerfile`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/Dockerfile).
+  - *Evidence*: [`test/unit/`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/), [`.golangci.yml`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/.golangci.yml), [`.github/workflows/ci.yml`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/.github/workflows/ci.yml), [`Dockerfile`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/Dockerfile).
 
 ---
 
@@ -34,37 +34,41 @@ All baseline architecture components have been systematically audited against th
 ### 1.1 Multi-Replica Load Balancing
 - [x] **Feature**: Support multiple container backends sharing the same `traffic-proxy.rule` hostname.
 - **Implementation Evidence**:
-  - Replaced single-host `map[string]*httputil.ReverseProxy` with `BackendPool` in [`internal/proxy/proxy.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go).
-  - Implemented 4 load balancing algorithms in [`internal/proxy/balancer.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/balancer.go):
+  - Replaced single-host `map[string]*httputil.ReverseProxy` with `BackendPool` in [`internal/proxy/proxy.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go).
+  - Implemented 4 load balancing algorithms in [`internal/proxy/balancer.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/balancer.go):
     - `round-robin` (default): Atomic cyclic index selection across healthy replicas.
     - `least-conn`: Selects backend with lowest atomic in-flight connection counter.
     - `ip-hash`: FNV-1a hash of client IP for sticky session routing.
     - `random`: Uniform pseudo-random distribution.
   - Added label `traffic-proxy.balance` parsing in `NewBalancer`.
-  - Upgraded [`internal/discovery/discovery.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go) to catalogue all containers, probe reachability via TCP, and flag `Reachable`/`Enabled`/`DiscoveryError`.
-  - Updated [`cmd/proxy/main.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/cmd/proxy/main.go) to pass raw target slices to `router.UpdateBackends(targets)`.
-  - Comprehensive unit testing: [`test/unit/balancer_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/balancer_test.go) and [`test/unit/proxy_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go).
+  - Upgraded [`internal/discovery/discovery.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go) to catalogue all containers, probe reachability via TCP, and flag `Reachable`/`Enabled`/`DiscoveryError`.
+  - Updated [`cmd/proxy/main.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/cmd/proxy/main.go) to pass raw target slices to `router.UpdateBackends(targets)`.
+  - Comprehensive unit testing: [`test/unit/balancer_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/balancer_test.go) and [`test/unit/proxy_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_test.go).
 - **Target Files**: `internal/proxy/balancer.go`, `internal/proxy/proxy.go`, `internal/discovery/discovery.go`, `cmd/proxy/main.go`.
 - **Status**: **Completed**.
 
 ### 1.2 Path-Based Routing & Path Rewriting
 - [x] **Feature**: Route requests based on URL path prefixes and rewrite paths before forwarding.
 - **Implementation Evidence**:
-  - Implemented segment-based prefix trie [`HostTrie`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/route_tree.go) and [`RouteTable`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/route_tree.go) in [`internal/proxy/route_tree.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/route_tree.go). Supports integer priority precedence and Longest Prefix Match (LPM) tie-breaking with strict segment boundary isolation.
-  - Added path routing label parsing and validation (`traffic-proxy.path`, `traffic-proxy.strip-prefix`, `traffic-proxy.priority`) with error tagging in [`internal/discovery/discovery.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go).
-  - Upgraded [`internal/proxy/proxy.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go) with lock-free atomic route table swapping via `atomic.Pointer[RouteTable]`, prefix stripping using pooled `bytes.Buffer`, and `X-Forwarded-Prefix` header propagation.
+  - Implemented segment-based prefix trie [`HostTrie`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/route_tree.go) and [`RouteTable`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/route_tree.go) in [`internal/proxy/route_tree.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/route_tree.go). Supports integer priority precedence and Longest Prefix Match (LPM) tie-breaking with strict segment boundary isolation.
+  - Added path routing label parsing and validation (`traffic-proxy.path`, `traffic-proxy.strip-prefix`, `traffic-proxy.priority`) with error tagging in [`internal/discovery/discovery.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/discovery/discovery.go).
+  - Upgraded [`internal/proxy/proxy.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go) with lock-free atomic route table swapping via `atomic.Pointer[RouteTable]`, prefix stripping using pooled `bytes.Buffer`, and `X-Forwarded-Prefix` header propagation.
   - Strict zero-fallback returning HTTP 404 for unmapped paths under registered hosts.
-  - Comprehensive unit testing: [`test/unit/route_tree_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/route_tree_test.go), [`test/unit/proxy_path_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_path_test.go), and [`test/unit/discovery_test.go:TestDockerProvider_PathRoutingLabelValidation`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/discovery_test.go).
+  - Comprehensive unit testing: [`test/unit/route_tree_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/route_tree_test.go), [`test/unit/proxy_path_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_path_test.go), and [`test/unit/discovery_test.go:TestDockerProvider_PathRoutingLabelValidation`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/discovery_test.go).
 - **Target Files**: `internal/proxy/route_tree.go`, `internal/proxy/proxy.go`, `internal/discovery/discovery.go`.
 - **Status**: **Completed**.
 
 ### 1.3 WebSocket & HTTP Upgrade Support
-- [ ] **Feature**: Transparent proxying of WebSocket (`ws://` and `wss://`) connections and HTTP/2 cleartext (`h2c`).
-- **Implementation Plan**:
-  - Verify `httputil.ReverseProxy` properly negotiates `Connection: Upgrade` headers.
-  - Bypass standard short-lived request timeouts for active persistent WebSocket tunnels.
-- **Target Files**: `internal/proxy/proxy.go`.
-- **Status**: **Pending** (No dedicated WebSocket connection tracking or timeout bypass logic).
+- [x] **Feature**: Transparent proxying of WebSocket (`ws://` and `wss://`) connections and HTTP/2 cleartext (`h2c`).
+- **Implementation Evidence**:
+  - Implemented `isUpgradeRequest` detecting `Upgrade` and `Connection: upgrade` headers in [`internal/proxy/proxy.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go).
+  - Implemented `upgradeTracker` wrapping `http.ResponseWriter`, `http.Hijacker`, and `http.Flusher`, clearing socket deadlines (`SetDeadline(time.Time{})`) on `Hijack()`.
+  - Added dynamic concurrency handoff releasing `Router.sem` and decrementing `ActiveConcurrency` early upon receiving `101 Switching Protocols` to prevent queue starvation.
+  - Added `ActiveUpgrades` atomic gauge tracking in [`internal/metrics/metrics.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/metrics/metrics.go) and configurable `MaxConcurrentUpgrades` limit in [`internal/config/config.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/config/config.go).
+  - Added interactive WebSocket Upgrade Tester in the Dev Console tab of [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html).
+  - Comprehensive socket-level unit testing: [`test/unit/proxy_websocket_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_websocket_test.go).
+- **Target Files**: `internal/proxy/proxy.go`, `internal/metrics/metrics.go`, `internal/config/config.go`, `cmd/proxy/main.go`, `internal/server/dev.go`, `ui/static/index.html`, `test/unit/proxy_websocket_test.go`.
+- **Status**: **Completed**.
 
 ---
 
@@ -110,10 +114,10 @@ All baseline architecture components have been systematically audited against th
 ### 2.5 Security Headers Middleware
 - [x] **Feature**: Enforce modern browser security standards.
 - **Implementation Evidence**:
-  - Implemented [`SecurityHeadersMiddleware`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/middleware.go) injecting `Strict-Transport-Security` (HSTS), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`.
-  - Implemented [`securityResponseWriter`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/middleware.go) preserving `http.Flusher`, `http.Hijacker`, and Go 1.20+ `Unwrap()` compatibility for SSE and WebSockets.
-  - Mounted onto the Chi router pipeline in [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go).
-  - Comprehensive unit testing: [`test/unit/middleware_test.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/middleware_test.go).
+  - Implemented [`SecurityHeadersMiddleware`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/middleware.go) injecting `Strict-Transport-Security` (HSTS), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`.
+  - Implemented [`securityResponseWriter`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/middleware.go) preserving `http.Flusher`, `http.Hijacker`, and Go 1.20+ `Unwrap()` compatibility for SSE and WebSockets.
+  - Mounted onto the Chi router pipeline in [`internal/server/server.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go).
+  - Comprehensive unit testing: [`test/unit/middleware_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/middleware_test.go).
 - **Target Files**: `internal/server/middleware.go`, `internal/server/server.go`.
 - **Status**: **Completed**.
 
@@ -213,19 +217,21 @@ All baseline architecture components have been systematically audited against th
 - [ ] **Feature**: Real-time Server-Sent Events (SSE) telemetry stream (`/api/events`) and interactive management console.
 - **Sub-Features & Implementation Progress**:
   - [x] **Live Telemetry Stream (`/api/events`)**: Chi router SSE endpoint emitting dual streams (`event: metrics` for HTMX OOB DOM swaps and `event: telemetry` for dynamic Chart.js updates with 25-point sliding window).
-    - *Evidence*: [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go#L67-L147), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L133-L176), [`test/unit/server_test.go:TestSetupRouter_SSEEvents`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go#L56-L98).
+    - *Evidence*: [`internal/server/server.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go#L67-L147), [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L133-L176), [`test/unit/server_test.go:TestSetupRouter_SSEEvents`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go#L56-L98).
   - [x] **Dynamic Environment Profile & Status Dot**: Runtime environment injection (`__SANPROX_ENVIRONMENT__`), status badge pill, and live gateway connection indicator (`#gateway-status-dot`) with automatic offline recovery handling on `htmx:sseError`.
-    - *Evidence*: [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L48-L52), [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go#L44-L55), [`test/unit/server_test.go:TestSetupRouter_BrandingAndConfig`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go#L100-L148).
+    - *Evidence*: [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L48-L52), [`internal/server/server.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go#L44-L55), [`test/unit/server_test.go:TestSetupRouter_BrandingAndConfig`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go#L100-L148).
   - [x] **Interactive Dev Console & Synthetic Seeder**: In-dashboard quick actions and dedicated Dev Tools tab supporting synthetic traffic seeding with dynamic Docker service sampling (`POST /api/dev/seed`), queue saturation testing (`POST /api/dev/stress`), atomic counter reset (`POST /api/dev/reset-metrics`), and live runtime state inspection (`GET /api/dev/debug-state`).
-    - *Evidence*: [`internal/server/dev.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/dev.go), [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L97-L131), [`test/unit/server_test.go:TestSetupRouter_DevSeed_DynamicDockerSampling`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go#L247-L290).
+    - *Evidence*: [`internal/server/dev.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/dev.go), [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L97-L131), [`test/unit/server_test.go:TestSetupRouter_DevSeed_DynamicDockerSampling`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go#L247-L290).
+  - [x] **WebSocket Upgrade Tester & Monitor**: In-dashboard interactive WebSocket handshake and messaging console (`ui/static/index.html`) with target host container aliasing (`ws.local`, `ws-service`), dynamic frame log streaming, and manual message ping/pong.
+    - *Evidence*: [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L786-L1415), [`internal/proxy/proxy.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/proxy/proxy.go), [`test/unit/proxy_websocket_test.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/proxy_websocket_test.go).
   - [x] **Routing Discovery Table & Compose Generator**: Active virtual host rule inspection table with filter search and one-click Docker Compose YAML generator snippet.
-    - *Evidence*: [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L227-L338).
+    - *Evidence*: [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html#L227-L338).
   - [ ] **Maintenance Mode / Drain toggle**: Stop routing new traffic to a specific backend without killing the container.
   - [ ] **Live Slider for Runtime Limits**: Dynamic concurrency limit and queue timeout adjustments on the fly.
   - [ ] **Live Application Log Stream**: Real-time daemon log stream over SSE with client-side log level filtering.
 - **Target Files**: `ui/static/index.html`, `internal/server/server.go`, `internal/server/dev.go`, `cmd/trafficgen/main.go`.
-- **Status**: **In Progress (Live SSE Streaming, Dev Tools Console, and Dynamic Docker Seeder Complete; Drain & Live Logs Pending)**.
-  - *Current State*: The real-time `/api/events` Server-Sent Events stream is implemented in [`internal/server/server.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go) and verified by [`test/unit/server_test.go:TestSetupRouter_SSEEvents`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go). [`ui/static/index.html`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html) receives live dual streams via HTMX SSE extension and dynamic Chart.js rolling updates. [`internal/server/dev.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/server/dev.go) provides full developer and mock control endpoints with dynamic Docker service sampling. [`cmd/trafficgen/main.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/cmd/trafficgen/main.go) and [`scripts/seed-traffic.sh`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/scripts/seed-traffic.sh) support live streaming verification. Interactive backend drain controls and log filtering remain pending.
+- **Status**: **In Progress (Live SSE Streaming, Dev Tools Console, Dynamic Docker Seeder, and WebSocket Tester Complete; Drain & Live Logs Pending)**.
+  - *Current State*: The real-time `/api/events` Server-Sent Events stream is implemented in [`internal/server/server.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/server.go) and verified by [`test/unit/server_test.go:TestSetupRouter_SSEEvents`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/server_test.go). [`ui/static/index.html`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/ui/static/index.html) receives live dual streams via HTMX SSE extension, dynamic Chart.js rolling updates, and full WebSocket protocol upgrade inspection. [`internal/server/dev.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/server/dev.go) provides full developer and mock control endpoints with dynamic Docker service sampling. [`cmd/trafficgen/main.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/cmd/trafficgen/main.go) and [`scripts/seed-traffic.sh`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/scripts/seed-traffic.sh) support live streaming verification. Interactive backend drain controls and log filtering remain pending.
 
 ---
 
@@ -235,8 +241,8 @@ All baseline architecture components have been systematically audited against th
 
 ### 6.1 Centralized Dynamic Configuration
 - [x] **Feature**: Unified configuration via environment variables, profile detection, and local start scripts.
-  - *Evidence*: [`internal/config/config.go`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/internal/config/config.go#L12-L92), [`.env.example`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.env.example), [`.env`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/.env), [`start.ps1`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/start.ps1), [`start.sh`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/start.sh); tested in [`test/unit/config_test.go:TestConfig_EnvironmentVariations`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/test/unit/config_test.go).
-  - Supported: `ENVIRONMENT` (`DEVELOPMENT`/`PRODUCTION`), `PROXY_PORT`, `PROXY_MAX_CONCURRENT`, `PROXY_QUEUE_TIMEOUT`, `DOCKER_POLL_INTERVAL`, `LOG_LEVEL`.
+  - *Evidence*: [`internal/config/config.go`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/internal/config/config.go#L12-L92), [`.env.example`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/.env.example), [`.env`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/.env), [`start.ps1`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/start.ps1), [`start.sh`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/start.sh); tested in [`test/unit/config_test.go:TestConfig_EnvironmentVariations`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/test/unit/config_test.go).
+  - Supported: `ENVIRONMENT` (`DEVELOPMENT`/`PRODUCTION`), `PROXY_PORT`, `PROXY_MAX_CONCURRENT`, `PROXY_MAX_CONCURRENT_UPGRADES`, `PROXY_QUEUE_TIMEOUT`, `DOCKER_POLL_INTERVAL`, `LOG_LEVEL`.
   - *Status*: **Implemented (Core Environment Configuration & Profile Guards)**.
 
 ### 6.2 End-to-End (E2E) Integration Test Suite
@@ -251,7 +257,7 @@ All baseline architecture components have been systematically audited against th
 - **Implementation Plan**:
   - Automated benchmark scripts using `vegeta` or `k6` committed in `test/benchmark/`.
   - Profiling hooks (`net/http/pprof`) enabled via debug flag for CPU and heap allocation analysis.
-  - Note: Synthetic traffic generator tool [`cmd/trafficgen`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/cmd/trafficgen) and [`scripts/seed-traffic.sh`](file:///C:/Users/johan/Desktop/Traffic-Proxy-Dashboard/scripts/seed-traffic.sh) are implemented and functional, but formal benchmarking harness and pprof profiling remain pending.
+  - Note: Synthetic traffic generator tool [`cmd/trafficgen`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/cmd/trafficgen) and [`scripts/seed-traffic.sh`](file:///home/ninonakano/Desktop/Traffic-Proxy-Dashboard/scripts/seed-traffic.sh) are implemented and functional, but formal benchmarking harness and pprof profiling remain pending.
 - **Target Files**: `test/benchmark/load_test.sh`, `internal/server/pprof.go`.
 - **Status**: **Pending**.
 
@@ -262,7 +268,7 @@ All baseline architecture components have been systematically audited against th
 | Milestone | Key Features | Status | Priority | Estimated Complexity | Core Packages |
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | **Baseline Architecture** | Single-host proxy, Semaphore queue, Docker discovery, Embedded UI, Dev Controls | **Completed** | Foundation | - | `internal/*`, `ui/` |
-| **M1: Load Balancing & Routing** | Multi-replica pools, Round-Robin, Path matching, WebSocket | **In Progress (1.1, 1.2 Done)** | **P0 (Immediate)** | Medium | `internal/proxy` |
+| **M1: Load Balancing & Routing** | Multi-replica pools, Round-Robin, Path matching, WebSocket | **Completed** | **P0 (Immediate)** | Medium | `internal/proxy` |
 | **M2: TLS & Security** | Let's Encrypt ACME, Custom certs, HTTPS redirect, Rate limiting, Security headers | **In Progress (2.5 Done)** | **P0 (Immediate)** | High | `internal/server`, `internal/proxy` |
 | **M3: Health Checks & Resiliency**| Active HTTP probes, Circuit Breakers, Safe retries | **Pending** | **P1 (High)** | Medium | `internal/discovery`, `internal/proxy` |
 | **M4: Event-Driven Discovery** | Real-time Docker events, File/Static provider, Swarm/K8s | **Pending** | **P1 (High)** | Medium | `internal/discovery` |

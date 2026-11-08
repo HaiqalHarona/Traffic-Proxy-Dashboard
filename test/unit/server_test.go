@@ -52,6 +52,25 @@ func TestSetupRouter_Endpoints(t *testing.T) {
 	if recUnk.Code != http.StatusBadGateway {
 		t.Fatalf("Expected status 502 for unmapped proxy route, got %d", recUnk.Code)
 	}
+
+	// Test 4: Root path with Upgrade header forwards to proxy router
+	reqUpgrade := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqUpgrade.Header.Set("Upgrade", "websocket")
+	reqUpgrade.Header.Set("Connection", "Upgrade")
+	recUpgrade := httptest.NewRecorder()
+	r.ServeHTTP(recUpgrade, reqUpgrade)
+	// Because host is unmapped, proxy router returns 502, proving it bypassed the UI handler
+	if recUpgrade.Code != http.StatusBadGateway {
+		t.Fatalf("Expected status 502 from proxy router for unmapped WS upgrade, got %d", recUpgrade.Code)
+	}
+
+	// Test 5: Root path with ?host= override forwards to proxy router
+	reqHostParam := httptest.NewRequest(http.MethodGet, "/?host=ws.local", nil)
+	recHostParam := httptest.NewRecorder()
+	r.ServeHTTP(recHostParam, reqHostParam)
+	if recHostParam.Code != http.StatusBadGateway {
+		t.Fatalf("Expected status 502 from proxy router for unmapped host query param, got %d", recHostParam.Code)
+	}
 }
 
 func TestSetupRouter_SSEEvents(t *testing.T) {

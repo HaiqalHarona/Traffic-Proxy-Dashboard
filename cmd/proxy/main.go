@@ -30,6 +30,7 @@ func main() {
 	collector := metrics.NewCollector()
 	router := proxy.NewRouter(proxy.Config{
 		MaxConcurrentRequests: cfg.MaxConcurrentRequests,
+		MaxConcurrentUpgrades: cfg.MaxConcurrentUpgrades,
 		QueueTimeout:          cfg.QueueTimeout,
 	}, collector)
 
